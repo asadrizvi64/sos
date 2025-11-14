@@ -6,6 +6,7 @@ import { createId } from '@paralleldrive/cuid2';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { featureFlagService } from '../featureFlagService';
 import { costCalculationService } from '../costCalculationService';
+import { guardrailsService } from '../guardrailsService';
 
 export async function executeLLM(context: NodeExecutionContext): Promise<NodeExecutionResult> {
   const { input, config } = context;
@@ -20,6 +21,57 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
         code: 'MISSING_PROMPT',
       },
     };
+  }
+
+  // Guardrails: Check prompt similarity (if enabled)
+  try {
+    const enableSimilarityCheck = await featureFlagService.isEnabled(
+      'enable_prompt_similarity_check',
+      context.userId,
+      (context as any).workspaceId
+    );
+
+    if (enableSimilarityCheck) {
+      // Get known prompts from configuration or database
+      const knownPrompts = (nodeConfig.knownPrompts as string[]) || [];
+      const similarityThreshold = (nodeConfig.similarityThreshold as number) || 0.85;
+
+      if (knownPrompts.length > 0) {
+        // Get traceId after span creation
+        const spanContext = span.spanContext();
+        const traceId = spanContext.traceId;
+
+        const similarityResult = await guardrailsService.checkPromptSimilarity(
+          prompt,
+          knownPrompts,
+          context.userId || undefined,
+          (context as any).organizationId || undefined,
+          (context as any).workspaceId || undefined,
+          similarityThreshold,
+          'cosine',
+          context.executionId || undefined,
+          context.nodeId || undefined,
+          traceId
+        );
+
+        if (similarityResult.similar) {
+          return {
+            success: false,
+            error: {
+              message: `Prompt similarity check failed: prompt is too similar to known prompts (${(similarityResult.similarityScore * 100).toFixed(1)}% similarity)`,
+              code: 'PROMPT_SIMILARITY_ERROR',
+              details: {
+                similarityScore: similarityResult.similarityScore,
+                matchedPrompts: similarityResult.matchedPrompts,
+              },
+            },
+          };
+        }
+      }
+    }
+  } catch (error: any) {
+    console.warn('[LLM Executor] Prompt similarity check failed:', error);
+    // Continue execution if similarity check fails
   }
 
   const startTime = Date.now();
