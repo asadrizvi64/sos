@@ -803,7 +803,7 @@ Format your response as JSON:
   /**
    * Record failure
    */
-  recordFailure(agentId: string, failure: FailureType): void {
+  async recordFailure(agentId: string, failure: FailureType, context?: Record<string, unknown>): Promise<void> {
     const history = this.failureHistory.get(agentId) || [];
     history.push(failure);
     
@@ -813,6 +813,54 @@ Format your response as JSON:
     }
     
     this.failureHistory.set(agentId, history);
+
+    // Record failure in observability service
+    if (context && (context as any).userId) {
+      try {
+        observabilityService.recordEvent({
+          type: 'agent_failure',
+          userId: (context as any).userId,
+          organizationId: (context as any).organizationId,
+          workspaceId: (context as any).workspaceId,
+          metadata: {
+            agentId,
+            failureType: failure.type,
+            severity: failure.severity,
+            message: failure.message,
+            consecutiveFailures: history.length,
+          },
+        });
+      } catch (error: any) {
+        console.warn('[Self-Healing] Failed to record failure in observability:', error);
+      }
+    }
+
+    // Check if StackStorm monitoring is enabled
+    try {
+      const enableStackStormMonitoring = await featureFlagService.isEnabled(
+        'enable_stackstorm_failure_monitoring',
+        (context as any)?.userId,
+        (context as any)?.workspaceId
+      );
+
+      if (enableStackStormMonitoring && stackstormConfig.enabled) {
+        try {
+          // Trigger StackStorm event for failure monitoring
+          await stackstormService.triggerEvent('agent.failure', {
+            agent_id: agentId,
+            failure_type: failure.type,
+            severity: failure.severity,
+            message: failure.message,
+            consecutive_failures: history.length,
+            timestamp: failure.timestamp.toISOString(),
+          });
+        } catch (error: any) {
+          console.warn('[Self-Healing] Failed to trigger StackStorm failure event:', error);
+        }
+      }
+    } catch (error: any) {
+      // Feature flag check failed, continue
+    }
   }
 
   /**
