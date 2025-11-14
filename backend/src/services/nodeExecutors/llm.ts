@@ -438,6 +438,14 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
           workspaceId: (context as any).workspaceId,
           organizationId: (context as any).organizationId,
         },
+      }).then((langfuseUrl) => {
+        // Add Langfuse trace URL to span attributes for linking
+        if (langfuseUrl) {
+          span.setAttributes({
+            'langfuse.traceUrl': langfuseUrl,
+            'langfuse.traceId': spanContext.traceId,
+          });
+        }
       }).catch((err: any) => {
         // Log but don't throw - Langfuse export should not break execution
         console.warn('[LLM Executor] Langfuse export failed:', err);
@@ -497,6 +505,14 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
           workspaceId: (context as any).workspaceId,
           organizationId: (context as any).organizationId,
         },
+      }).then((langfuseUrl) => {
+        // Add Langfuse trace URL to span attributes for linking
+        if (langfuseUrl) {
+          span.setAttributes({
+            'langfuse.traceUrl': langfuseUrl,
+            'langfuse.traceId': spanContext.traceId,
+          });
+        }
       }).catch((err: any) => {
         console.warn('[LLM Executor] Langfuse export failed:', err);
       });

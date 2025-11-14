@@ -439,10 +439,11 @@ export class LangfuseService {
 
   /**
    * Export LLM call trace
+   * Returns Langfuse trace URL for linking
    */
   async exportLLMCall(options: {
     traceId: string;
-    spanId: string;
+    spanId?: string;
     parentSpanId?: string;
     provider: string;
     model: string;
@@ -458,12 +459,12 @@ export class LangfuseService {
     };
     error?: string;
     metadata?: Record<string, any>;
-  }): Promise<void> {
-    await this.exportSpan({
+  }): Promise<string | null> {
+    return await this.exportSpan({
       traceId: options.traceId,
-      spanId: options.spanId,
+      spanId: options.spanId || `${options.traceId}-llm`,
       parentSpanId: options.parentSpanId,
-      name: `LLM: ${options.provider}/${options.model}`,
+      name: `LLM Call: ${options.model} (${options.provider})`,
       startTime: options.startTime,
       endTime: options.endTime,
       attributes: {
