@@ -37,6 +37,7 @@ import earlyAccessRouter from './routes/earlyAccess';
 import contactRouter from './routes/contact';
 import codeAgentsRouter from './routes/codeAgents';
 import codeExecLogsRouter from './routes/codeExecLogs';
+import policiesRouter from './routes/policies';
 import { scheduler } from './services/scheduler';
 import { permissionService } from './services/permissionService';
 import { websocketService } from './services/websocketService';
@@ -115,6 +116,7 @@ app.use('/api/v1/early-access', earlyAccessRouter);
 app.use('/api/v1/contact', contactRouter);
 app.use('/api/v1/code-agents', codeAgentsRouter);
 app.use('/api/v1/code-exec-logs', codeExecLogsRouter);
+app.use('/api/v1/policies', policiesRouter);
 app.use('/webhooks', webhooksRouter);
 
 app.get('/api/v1', (req, res) => {

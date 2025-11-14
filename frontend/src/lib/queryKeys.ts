@@ -81,5 +81,9 @@ export const queryKeys = {
     results: (monitorId?: string) => monitorId ? ['osint', 'results', monitorId] as const : ['osint', 'results'] as const,
     stats: ['osint', 'stats'] as const,
   },
+  policies: {
+    all: (workspaceId?: string) => workspaceId ? ['policies', workspaceId] as const : ['policies'] as const,
+    detail: (id: string) => ['policies', id] as const,
+  },
 };
 
