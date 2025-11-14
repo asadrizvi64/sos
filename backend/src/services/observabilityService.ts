@@ -108,7 +108,9 @@ export class ObservabilityService {
     executionId?: string,
     organizationId?: string,
     startTime?: Date,
-    endTime?: Date
+    endTime?: Date,
+    intermediateSteps?: any[],
+    context?: Record<string, unknown>
   ): Promise<void> {
     try {
       // Get trace ID from OpenTelemetry context if not provided
@@ -134,6 +136,13 @@ export class ObservabilityService {
       const executionStartTime = startTime || new Date(now.getTime() - duration);
       const executionEndTime = endTime || now;
 
+      // Extract intermediateSteps from context parameter or context object
+      const contextData = context || {};
+      const extractedIntermediateSteps = intermediateSteps || 
+        (contextData as any)?.executionNodes || 
+        (contextData as any)?.intermediateSteps || 
+        [];
+
       // Write to database
       await db.insert(eventLogs).values({
         id: createId(),
@@ -148,6 +157,7 @@ export class ObservabilityService {
           agentId,
           query,
           executionId,
+          intermediateSteps: intermediateSteps.length > 0 ? intermediateSteps : undefined,
         },
         status: success ? 'success' : 'error',
         latencyMs: duration,
@@ -157,6 +167,10 @@ export class ObservabilityService {
 
       // Export to Langfuse (async, non-blocking)
       if (langfuseService.isEnabled() && agentId && query && executionId) {
+        // Extract intermediateSteps from context if available
+        const contextData = context as any;
+        const intermediateSteps = contextData?.executionNodes || contextData?.intermediateSteps || [];
+
         langfuseService.exportAgentExecution({
           traceId: finalTraceId,
           agentId,
@@ -183,6 +197,7 @@ export class ObservabilityService {
             duration,
             latencyMs: duration,
           },
+          intermediateSteps: intermediateSteps.length > 0 ? intermediateSteps : undefined,
         }).catch((err: any) => {
           // Log but don't throw - Langfuse export should not break execution
           console.warn('[Observability] Langfuse export failed:', err);
