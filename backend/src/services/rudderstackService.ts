@@ -351,6 +351,68 @@ class RudderStackService {
   }
 
   /**
+   * Forward cost log to RudderStack for data warehouse ingestion
+   */
+  forwardCostLog(
+    costLog: {
+      costLogId: string;
+      userId: string;
+      workspaceId: string;
+      organizationId?: string;
+      provider: string;
+      model: string;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      costUsd: number;
+      costUsdCents: number;
+      inputCost: number;
+      outputCost: number;
+      inputCostPer1k: number;
+      outputCostPer1k: number;
+      agentId?: string;
+      workflowExecutionId?: string;
+      nodeId?: string;
+      traceId?: string;
+      timestamp: string;
+    }
+  ): void {
+    if (!this.enabled || !this.client) return;
+
+    try {
+      this.track(
+        costLog.userId,
+        'llm_cost_logged',
+        {
+          cost_log_id: costLog.costLogId,
+          provider: costLog.provider,
+          model: costLog.model,
+          input_tokens: costLog.inputTokens,
+          output_tokens: costLog.outputTokens,
+          total_tokens: costLog.totalTokens,
+          cost_usd: costLog.costUsd,
+          cost_usd_cents: costLog.costUsdCents,
+          input_cost: costLog.inputCost,
+          output_cost: costLog.outputCost,
+          input_cost_per_1k: costLog.inputCostPer1k,
+          output_cost_per_1k: costLog.outputCostPer1k,
+          agent_id: costLog.agentId,
+          workflow_execution_id: costLog.workflowExecutionId,
+          node_id: costLog.nodeId,
+          timestamp: costLog.timestamp,
+        },
+        {
+          workspaceId: costLog.workspaceId,
+          organizationId: costLog.organizationId,
+          traceId: costLog.traceId,
+        }
+      );
+    } catch (error) {
+      console.warn('Failed to forward cost log to RudderStack:', error);
+    }
+  }
+
+  /**
    * Get queue statistics
    */
   getQueueStats(): { queueLength: number; processing: boolean } {

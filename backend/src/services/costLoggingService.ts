@@ -3,6 +3,7 @@
  * 
  * Centralized service for logging LLM costs to the database.
  * Used by all services that make LLM calls.
+ * Forwards cost logs to RudderStack for data warehouse ingestion.
  */
 
 import { db } from '../config/database';
@@ -10,6 +11,7 @@ import { modelCostLogs } from '../../drizzle/schema';
 import { createId } from '@paralleldrive/cuid2';
 import { costCalculationService, CostCalculationResult } from './costCalculationService';
 import { featureFlagService } from './featureFlagService';
+import { rudderstackService } from './rudderstackService';
 
 export interface CostLoggingContext {
   userId?: string | null;
@@ -64,8 +66,9 @@ export async function logLLMCost(input: CostLoggingInput): Promise<void> {
       : null;
 
     // Insert cost log
+    const costLogId = createId();
     await db.insert(modelCostLogs).values({
-      id: createId(),
+      id: costLogId,
       userId: input.context.userId || null,
       agentId: input.context.agentId || null,
       workflowExecutionId: input.context.workflowExecutionId || null,
@@ -86,6 +89,37 @@ export async function logLLMCost(input: CostLoggingInput): Promise<void> {
       timestamp: new Date(),
       createdAt: new Date(),
     });
+
+    // Forward to RudderStack for data warehouse ingestion
+    if (input.context.userId && input.context.workspaceId) {
+      try {
+        rudderstackService.forwardCostLog({
+          costLogId,
+          userId: input.context.userId,
+          workspaceId: input.context.workspaceId,
+          organizationId: input.context.organizationId || undefined,
+          provider: input.provider,
+          model: input.model,
+          inputTokens: input.inputTokens,
+          outputTokens: input.outputTokens,
+          totalTokens: costResult.totalTokens,
+          costUsd: costResult.totalCost,
+          costUsdCents: costResult.costUsdCents,
+          inputCost: costResult.inputCost,
+          outputCost: costResult.outputCost,
+          inputCostPer1k: costResult.inputCostPer1k,
+          outputCostPer1k: costResult.outputCostPer1k,
+          agentId: input.context.agentId || undefined,
+          workflowExecutionId: input.context.workflowExecutionId || undefined,
+          nodeId: input.context.nodeId || undefined,
+          traceId: input.context.traceId || undefined,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (rudderError: any) {
+        // Log but don't throw - RudderStack forwarding should not break cost logging
+        console.warn('[Cost Logging] Failed to forward cost log to RudderStack:', rudderError);
+      }
+    }
   } catch (error: any) {
     // Don't throw - cost logging should not break execution
     console.error('[Cost Logging] Failed to log cost:', error);
