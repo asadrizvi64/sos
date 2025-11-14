@@ -104,7 +104,10 @@ export async function executeAgent(
   }
 
   // Guardrails: Check for abuse
-  const abuseCheck = guardrailsService.checkAbuse(query);
+  const abuseCheck = await guardrailsService.checkAbuse(query, {
+    useMLDetection: true,
+    checkSemanticSimilarity: true,
+  });
   if (abuseCheck.isAbuse && abuseCheck.action === 'block') {
     // Track prompt blocking in PostHog
     if (context.userId && context.organizationId) {
