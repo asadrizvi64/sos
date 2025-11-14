@@ -805,15 +805,60 @@ export const modelCostLogs = pgTable('model_cost_logs', {
 export const promptSimilarityLogs = pgTable('prompt_similarity_logs', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  agentId: text('agent_id'), // Reference to agent/workflow
-  similarityScore: integer('similarity_score').notNull(), // Similarity score (0-100)
-  flaggedReference: text('flagged_reference'), // Reference to flagged content
-  actionTaken: text('action_taken'), // 'blocked', 'allowed', 'flagged'
+  agentId: text('agent_id').references(() => codeAgents.id, { onDelete: 'set null' }), // Reference to code agent
+  workflowExecutionId: text('workflow_execution_id').references(() => workflowExecutions.id, { onDelete: 'set null' }), // Reference to workflow execution
+  nodeId: text('node_id'), // Node ID in workflow
+  prompt: text('prompt').notNull(), // The prompt being checked
+  promptEmbedding: jsonb('prompt_embedding'), // Embedding vector for the prompt
+  similarityScore: decimal('similarity_score', { precision: 5, scale: 4 }).notNull(), // Similarity score (0.0-1.0, cosine similarity)
+  similarityScorePercent: integer('similarity_score_percent'), // Similarity score as percentage (0-100) for backward compatibility
+  flaggedReference: text('flagged_reference'), // Reference to flagged content (ID or hash)
+  flaggedContent: text('flagged_content'), // The flagged content that matched
+  flaggedContentEmbedding: jsonb('flagged_content_embedding'), // Embedding vector for flagged content
+  actionTaken: text('action_taken').notNull(), // 'blocked', 'allowed', 'flagged', 'warned'
+  threshold: decimal('threshold', { precision: 5, scale: 4 }), // Threshold used for comparison
+  method: text('method').notNull(), // 'cosine', 'euclidean', 'dot_product', 'manhattan'
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  traceId: text('trace_id'), // OpenTelemetry trace ID
   timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(), // Alias for timestamp for consistency
 }, (table) => ({
   userIdIdx: index('prompt_similarity_logs_user_id_idx').on(table.userId),
   agentIdIdx: index('prompt_similarity_logs_agent_id_idx').on(table.agentId),
+  workflowExecutionIdIdx: index('prompt_similarity_logs_workflow_execution_id_idx').on(table.workflowExecutionId),
+  nodeIdIdx: index('prompt_similarity_logs_node_id_idx').on(table.nodeId),
+  similarityScoreIdx: index('prompt_similarity_logs_similarity_score_idx').on(table.similarityScore),
+  actionTakenIdx: index('prompt_similarity_logs_action_taken_idx').on(table.actionTaken),
+  methodIdx: index('prompt_similarity_logs_method_idx').on(table.method),
+  organizationIdIdx: index('prompt_similarity_logs_organization_id_idx').on(table.organizationId),
+  workspaceIdIdx: index('prompt_similarity_logs_workspace_id_idx').on(table.workspaceId),
+  traceIdIdx: index('prompt_similarity_logs_trace_id_idx').on(table.traceId),
   timestampIdx: index('prompt_similarity_logs_timestamp_idx').on(table.timestamp),
+  createdAtIdx: index('prompt_similarity_logs_created_at_idx').on(table.createdAt),
+}));
+
+export const promptSimilarityLogsRelations = relations(promptSimilarityLogs, ({ one }) => ({
+  agent: one(codeAgents, {
+    fields: [promptSimilarityLogs.agentId],
+    references: [codeAgents.id],
+  }),
+  workflowExecution: one(workflowExecutions, {
+    fields: [promptSimilarityLogs.workflowExecutionId],
+    references: [workflowExecutions.id],
+  }),
+  organization: one(organizations, {
+    fields: [promptSimilarityLogs.organizationId],
+    references: [organizations.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [promptSimilarityLogs.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [promptSimilarityLogs.userId],
+    references: [users.id],
+  }),
 }));
 
 // Feature Flags (Phase 2: Observability)
