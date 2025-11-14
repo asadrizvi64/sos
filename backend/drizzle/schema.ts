@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, integer, pgEnum, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, jsonb, integer, pgEnum, index, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 
@@ -769,20 +769,36 @@ export const agentTraceHistory = pgTable('agent_trace_history', {
 export const modelCostLogs = pgTable('model_cost_logs', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  agentId: text('agent_id'), // Reference to agent/workflow
+  agentId: text('agent_id').references(() => codeAgents.id, { onDelete: 'set null' }), // Reference to code agent
+  workflowExecutionId: text('workflow_execution_id').references(() => workflowExecutions.id, { onDelete: 'set null' }), // Reference to workflow execution
+  nodeId: text('node_id'), // Node ID in workflow
   modelName: text('model_name').notNull(), // e.g., 'gpt-4', 'claude-3-opus'
+  provider: text('provider').notNull(), // Provider (e.g., 'openai', 'anthropic', 'google')
   inputTokens: integer('input_tokens').notNull(),
   outputTokens: integer('output_tokens').notNull(),
-  ratePer1k: integer('rate_per_1k').notNull(), // Rate per 1k tokens in cents
+  tokensTotal: integer('tokens_total'), // Total tokens (input + output)
+  ratePer1k: integer('rate_per_1k'), // Rate per 1k tokens in cents (optional, for historical data)
   costUsd: integer('cost_usd').notNull(), // Cost in cents (for precision)
+  usdCost: decimal('usd_cost', { precision: 10, scale: 6 }), // Cost in USD (decimal for precision)
+  prompt: text('prompt'), // Prompt text (optional, can be truncated)
+  response: text('response'), // Response text (optional, can be truncated)
   traceId: text('trace_id'), // OpenTelemetry trace ID
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(), // Alias for timestamp for consistency
 }, (table) => ({
   userIdIdx: index('model_cost_logs_user_id_idx').on(table.userId),
   agentIdIdx: index('model_cost_logs_agent_id_idx').on(table.agentId),
+  workflowExecutionIdIdx: index('model_cost_logs_workflow_execution_id_idx').on(table.workflowExecutionId),
+  nodeIdIdx: index('model_cost_logs_node_id_idx').on(table.nodeId),
   modelNameIdx: index('model_cost_logs_model_name_idx').on(table.modelName),
+  providerIdx: index('model_cost_logs_provider_idx').on(table.provider),
   traceIdIdx: index('model_cost_logs_trace_id_idx').on(table.traceId),
+  organizationIdIdx: index('model_cost_logs_organization_id_idx').on(table.organizationId),
+  workspaceIdIdx: index('model_cost_logs_workspace_id_idx').on(table.workspaceId),
   timestampIdx: index('model_cost_logs_timestamp_idx').on(table.timestamp),
+  createdAtIdx: index('model_cost_logs_created_at_idx').on(table.createdAt),
 }));
 
 // Prompt Similarity Logs (Phase 2: Observability)
