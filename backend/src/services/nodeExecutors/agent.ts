@@ -514,6 +514,46 @@ export async function executeAgent(
       userId: context.userId,
     });
 
+    // Export to Langfuse with agent thoughts (async, non-blocking)
+    if (langfuseService.isEnabled() && result.intermediateSteps) {
+      langfuseService.exportAgentExecution({
+        traceId: finalTraceId,
+        agentId: `${workflowId}-${nodeId}`,
+        framework: (nodeConfig.agentType as string) || 'auto',
+        query,
+        executionId,
+        userId: context.userId,
+        organizationId: context.organizationId,
+        workspaceId: (context as any).workspaceId,
+        startTime: new Date(startTime),
+        endTime: new Date(),
+        success: true,
+        cost: result.cost,
+        tokens: result.tokensUsed
+          ? {
+              total: typeof result.tokensUsed === 'number' ? result.tokensUsed : (result.tokensUsed as any).total || 0,
+              prompt: typeof result.tokensUsed === 'number' 
+                ? Math.floor(result.tokensUsed * 0.7) 
+                : (result.tokensUsed as any).prompt || 0,
+              completion: typeof result.tokensUsed === 'number'
+                ? Math.floor(result.tokensUsed * 0.3)
+                : (result.tokensUsed as any).completion || 0,
+            }
+          : undefined,
+        metadata: {
+          duration: executionTime,
+          iterations: result.intermediateSteps?.length || 0,
+          agentType,
+          provider,
+          model,
+        },
+        intermediateSteps: result.intermediateSteps,
+      }).catch((err: any) => {
+        // Log but don't throw - Langfuse export should not break execution
+        console.warn('[Agent Executor] Langfuse export failed:', err);
+      });
+    }
+
     // Track in PostHog
     if (context.userId && context.organizationId) {
       posthogService.trackAgentExecution({
@@ -608,6 +648,32 @@ export async function executeAgent(
       error: error.message,
       userId: context.userId,
     });
+
+    // Export error to Langfuse (async, non-blocking)
+    if (langfuseService.isEnabled()) {
+      langfuseService.exportAgentExecution({
+        traceId: finalTraceId,
+        agentId: `${workflowId}-${nodeId}`,
+        framework: (nodeConfig.agentType as string) || 'auto',
+        query,
+        executionId,
+        userId: context.userId,
+        organizationId: context.organizationId,
+        workspaceId: (context as any).workspaceId,
+        startTime: new Date(startTime),
+        endTime: new Date(),
+        success: false,
+        error: error.message || 'Unknown error',
+        metadata: {
+          duration: executionTime,
+          agentType,
+          provider,
+          model,
+        },
+      }).catch((err: any) => {
+        console.warn('[Agent Executor] Langfuse export failed:', err);
+      });
+    }
 
     // Track error in PostHog
     if (context.userId && context.organizationId) {
