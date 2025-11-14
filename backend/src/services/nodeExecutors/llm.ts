@@ -190,15 +190,47 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
       );
 
       if (enableRegionRouting) {
+        // Get compliance requirements from organization settings or node config
+        let complianceRequirements: string[] = [];
+        const organizationId = (context as any).organizationId;
+        
+        if (organizationId) {
+          try {
+            const [org] = await db
+              .select({ settings: organizations.settings })
+              .from(organizations)
+              .where(eq(organizations.id, organizationId))
+              .limit(1);
+            
+            if (org?.settings && typeof org.settings === 'object') {
+              const settings = org.settings as any;
+              complianceRequirements = settings.complianceRequirements || [];
+            }
+          } catch (error: any) {
+            console.warn('[LLM Executor] Failed to fetch organization compliance requirements:', error);
+          }
+        }
+
+        // Merge with node config compliance requirements
+        if (nodeConfig.complianceRequirements) {
+          complianceRequirements = [
+            ...complianceRequirements,
+            ...(Array.isArray(nodeConfig.complianceRequirements) 
+              ? nodeConfig.complianceRequirements 
+              : [nodeConfig.complianceRequirements])
+          ];
+        }
+
         const regionRouting = guardrailsService.determineRegionRouting({
           userId: context.userId || undefined,
           organizationId: (context as any).organizationId || undefined,
           workspaceId: (context as any).workspaceId || undefined,
           userRegion: nodeConfig.userRegion || (context as any).userRegion,
           dataResidency: nodeConfig.dataResidency || (context as any).dataResidency,
-          complianceRequirements: nodeConfig.complianceRequirements || (context as any).complianceRequirements,
+          complianceRequirements: complianceRequirements.length > 0 ? complianceRequirements : undefined,
           preferredRegion: nodeConfig.preferredRegion || (context as any).preferredRegion,
           provider,
+          enforceCompliance: nodeConfig.enforceCompliance !== false, // Default to true
         });
 
         span.setAttributes({

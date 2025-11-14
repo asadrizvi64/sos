@@ -502,11 +502,13 @@ export class GuardrailsService {
    * Routes requests based on:
    * - User/organization region preference
    * - Data residency requirements (GDPR, HIPAA, etc.)
-   * - Compliance requirements
+   * - Compliance requirements (ENFORCED - cannot be overridden)
    * - Latency optimization
    * 
+   * Compliance routing is ENFORCED - EU data must go to EU clusters, etc.
+   * 
    * @param options - Routing configuration options
-   * @returns Region routing recommendation
+   * @returns Region routing recommendation (enforced for compliance)
    */
   determineRegionRouting(options: {
     userId?: string;
@@ -517,6 +519,7 @@ export class GuardrailsService {
     complianceRequirements?: string[]; // Compliance requirements (e.g., 'GDPR', 'HIPAA', 'SOC2')
     preferredRegion?: string; // User's preferred region
     provider?: 'openai' | 'anthropic' | 'google';
+    enforceCompliance?: boolean; // Whether to enforce compliance routing (default: true)
   } = {}): RegionRoutingResult {
     const {
       userRegion,
@@ -524,6 +527,7 @@ export class GuardrailsService {
       complianceRequirements = [],
       preferredRegion,
       provider = 'openai',
+      enforceCompliance = true, // Default to enforcing compliance
     } = options;
 
     // Default region mapping for providers
@@ -574,21 +578,31 @@ export class GuardrailsService {
       }
     }
 
-    // Check compliance requirements
-    if (complianceRequirements.length > 0) {
+    // Check compliance requirements (ENFORCED - highest priority)
+    if (complianceRequirements.length > 0 && enforceCompliance) {
       requiresCompliance = true;
       const hasGDPR = complianceRequirements.some(r => r.toUpperCase().includes('GDPR'));
       const hasHIPAA = complianceRequirements.some(r => r.toUpperCase().includes('HIPAA'));
       const hasSOC2 = complianceRequirements.some(r => r.toUpperCase().includes('SOC2'));
+      const hasCCPA = complianceRequirements.some(r => r.toUpperCase().includes('CCPA'));
+      const hasPIPEDA = complianceRequirements.some(r => r.toUpperCase().includes('PIPEDA'));
 
       if (hasGDPR && !dataResidency) {
-        // GDPR requires EU data processing
+        // GDPR requires EU data processing - ENFORCED
         targetRegion = providerRegions[provider]?.['eu'] || 'eu-west';
-        reason = `GDPR compliance: routing to EU region for data protection`;
+        reason = `GDPR compliance ENFORCED: EU data must be processed in EU region`;
       } else if (hasHIPAA && !dataResidency) {
-        // HIPAA typically requires US-based processing
+        // HIPAA typically requires US-based processing - ENFORCED
         targetRegion = providerRegions[provider]?.['us'] || 'us-east';
-        reason = `HIPAA compliance: routing to US region for healthcare data`;
+        reason = `HIPAA compliance ENFORCED: healthcare data must be processed in US region`;
+      } else if (hasCCPA && !dataResidency) {
+        // CCPA (California) - prefer US region
+        targetRegion = providerRegions[provider]?.['us'] || 'us-east';
+        reason = `CCPA compliance: routing to US region for California data protection`;
+      } else if (hasPIPEDA && !dataResidency) {
+        // PIPEDA (Canada) - can use US or EU, prefer US for latency
+        targetRegion = providerRegions[provider]?.['us'] || 'us-east';
+        reason = `PIPEDA compliance: routing to US region for Canadian data`;
       } else if (hasSOC2 && !dataResidency) {
         // SOC2 can work with any region, but prefer US for consistency
         if (targetRegion === 'us-east') {
@@ -597,13 +611,13 @@ export class GuardrailsService {
       }
     }
 
-    // Use preferred region if no compliance requirements
+    // Use preferred region if no compliance requirements (compliance takes priority)
     if (!requiresCompliance && preferredRegion) {
       targetRegion = preferredRegion;
       reason = `User preferred region: ${preferredRegion}`;
     }
 
-    // Use user's geographic region if no other preference
+    // Use user's geographic region if no other preference (compliance takes priority)
     if (!requiresCompliance && !preferredRegion && userRegion) {
       // Map user region to provider region
       const regionMap: Record<string, string> = {
