@@ -10,7 +10,8 @@
  * - Organization settings for compliance and preferences
  */
 
-import { guardrailsService, PromptLengthResult, RegionRoutingResult, CostTieringResult } from './guardrailsService';
+import { guardrailsService, PromptLengthResult, RegionRoutingResult, CostTieringResult, ValidationResult } from './guardrailsService';
+import { guardrailsAIService, GuardrailsAIOptions } from './guardrailsAIService';
 import { featureFlagService } from './featureFlagService';
 import { db } from '../config/database';
 import { organizations } from '../../drizzle/schema';
@@ -55,6 +56,10 @@ export interface RoutingDecision {
   // Warnings and errors
   warnings?: string[];
   errors?: string[];
+  
+  // GuardrailsAI validation results
+  inputValidation?: ValidationResult;
+  outputValidation?: ValidationResult;
 }
 
 /**
@@ -93,6 +98,16 @@ export interface RoutingOptions {
   // Advanced options
   allowModelDowngrade?: boolean;
   strictCompliance?: boolean; // Fail if compliance cannot be met
+  
+  // GuardrailsAI validation options
+  validateInput?: boolean; // Validate input prompt
+  validateOutput?: boolean; // Validate output (requires outputSchema or outputPolicies)
+  inputSchema?: Record<string, any> | string; // JSON Schema for input validation
+  outputSchema?: Record<string, any> | string; // JSON Schema for output validation
+  inputPolicies?: GuardrailsAIOptions['policies']; // Policies for input validation
+  outputPolicies?: GuardrailsAIOptions['policies']; // Policies for output validation
+  usePredefinedPolicies?: string | string[]; // Predefined policy sets to use
+  strictValidation?: boolean; // Fail if validation fails
 }
 
 /**
@@ -345,7 +360,64 @@ export class ArchGWService {
       warnings.push(...validationResult.warnings);
     }
 
-    // Step 8: Build final routing decision
+    // Step 8: GuardrailsAI input validation (if enabled)
+    let inputValidation: ValidationResult | undefined;
+    if (options.validateInput) {
+      try {
+        // Build policies from config
+        let inputPolicies = options.inputPolicies;
+        
+        // Add predefined policies if specified
+        if (options.usePredefinedPolicies) {
+          const predefinedPolicies = guardrailsService.getPredefinedPolicies();
+          const policySets = Array.isArray(options.usePredefinedPolicies)
+            ? options.usePredefinedPolicies
+            : [options.usePredefinedPolicies];
+          
+          const allPolicies: any[] = inputPolicies || [];
+          for (const policySet of policySets) {
+            if (predefinedPolicies[policySet]) {
+              allPolicies.push(...predefinedPolicies[policySet]);
+            }
+          }
+          inputPolicies = allPolicies;
+        }
+
+        if (options.inputSchema) {
+          // Validate with JSON Schema
+          inputValidation = await guardrailsService.validateOutputWithJSONSchema(
+            prompt,
+            options.inputSchema,
+            {
+              policies: inputPolicies,
+            }
+          );
+        } else if (inputPolicies && inputPolicies.length > 0) {
+          // Validate with policies only
+          inputValidation = await guardrailsService.validateOutputWithPolicies(
+            prompt,
+            inputPolicies
+          );
+        }
+
+        if (inputValidation && !inputValidation.valid) {
+          if (options.strictValidation) {
+            errors.push(`Input validation failed: ${inputValidation.errors?.join(', ')}`);
+          } else {
+            warnings.push(`Input validation warnings: ${inputValidation.errors?.join(', ')}`);
+          }
+        }
+      } catch (error: any) {
+        console.warn('[ArchGW] Input validation failed:', error);
+        if (options.strictValidation) {
+          errors.push(`Input validation error: ${error.message}`);
+        } else {
+          warnings.push(`Input validation error: ${error.message}`);
+        }
+      }
+    }
+
+    // Step 9: Build final routing decision
     const decision: RoutingDecision = {
       provider: finalProvider,
       model: finalModel,
@@ -366,9 +438,72 @@ export class ArchGWService {
       estimatedCost,
       warnings: warnings.length > 0 ? warnings : undefined,
       errors: errors.length > 0 ? errors : undefined,
+      inputValidation,
     };
 
     return decision;
+  }
+
+  /**
+   * Validate LLM output using GuardrailsAI
+   * 
+   * This method can be called after LLM execution to validate the output
+   * against JSON Schema and/or policies.
+   */
+  async validateOutput(
+    output: unknown,
+    options: {
+      outputSchema?: Record<string, any> | string;
+      outputPolicies?: GuardrailsAIOptions['policies'];
+      usePredefinedPolicies?: string | string[];
+      strictValidation?: boolean;
+    } = {}
+  ): Promise<ValidationResult> {
+    try {
+      // Build policies from config
+      let outputPolicies = options.outputPolicies;
+      
+      // Add predefined policies if specified
+      if (options.usePredefinedPolicies) {
+        const predefinedPolicies = guardrailsService.getPredefinedPolicies();
+        const policySets = Array.isArray(options.usePredefinedPolicies)
+          ? options.usePredefinedPolicies
+          : [options.usePredefinedPolicies];
+        
+        const allPolicies: any[] = outputPolicies || [];
+        for (const policySet of policySets) {
+          if (predefinedPolicies[policySet]) {
+            allPolicies.push(...predefinedPolicies[policySet]);
+          }
+        }
+        outputPolicies = allPolicies;
+      }
+
+      if (options.outputSchema) {
+        // Validate with JSON Schema
+        return await guardrailsService.validateOutputWithJSONSchema(
+          output,
+          options.outputSchema,
+          {
+            policies: outputPolicies,
+          }
+        );
+      } else if (outputPolicies && outputPolicies.length > 0) {
+        // Validate with policies only
+        return await guardrailsService.validateOutputWithPolicies(
+          output,
+          outputPolicies
+        );
+      }
+
+      // No validation configured
+      return { valid: true };
+    } catch (error: any) {
+      return {
+        valid: false,
+        errors: [`Output validation failed: ${error.message}`],
+      };
+    }
   }
 
   /**
