@@ -115,6 +115,52 @@ export class SelfHealingService {
     agentConfig: Record<string, unknown>,
     context?: Record<string, unknown>
   ): Promise<string> {
+    // Check if StackStorm integration is enabled
+    let useStackStorm = false;
+    try {
+      useStackStorm = await featureFlagService.isEnabled(
+        'enable_stackstorm_bullmq_integration',
+        (context as any)?.userId,
+        (context as any)?.workspaceId
+      );
+    } catch (error: any) {
+      console.warn('[Self-Healing] Failed to check StackStorm integration feature flag:', error);
+    }
+
+    if (useStackStorm && stackstormConfig.enabled) {
+      try {
+        // Get failure details from repair plan
+        const repairPlan = this.repairPlans.get(planId);
+        if (repairPlan) {
+          // Queue StackStorm workflow for agent recovery
+          const job = await stackstormBullMQIntegration.queueStackStormWorkflow(
+            'synthralos.agent_recovery',
+            {
+              agent_id: (context as any)?.agentId || 'unknown',
+              failure_type: repairPlan.failureType.type,
+              original_query: originalQuery,
+              failure_details: repairPlan.failureType.details || {},
+              context: context || {},
+              max_retries: 3,
+              retry_delay: 5,
+            },
+            {
+              priority: 1,
+              metadata: {
+                planId,
+                agentConfig,
+              },
+            }
+          );
+
+          return job.id!;
+        }
+      } catch (error: any) {
+        console.warn('[Self-Healing] StackStorm integration failed, falling back to BullMQ:', error);
+      }
+    }
+
+    // Fallback to standard BullMQ queue
     const job = await this.repairQueue.add(
       'execute-repair',
       {
