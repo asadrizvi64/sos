@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import api from '../lib/api';
+import TraceViewer from '../components/TraceViewer';
 
 interface AgentExecutionMetrics {
   framework: string;
@@ -36,6 +37,7 @@ interface SystemMetrics {
  */
 export default function ObservabilityDashboard() {
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'traces'>('metrics');
 
   // Fetch system metrics
   const { data: systemMetrics, isLoading } = useQuery<SystemMetrics>({
@@ -87,6 +89,43 @@ export default function ObservabilityDashboard() {
           <option value="30d">Last 30 Days</option>
         </select>
       </div>
+
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('metrics')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'metrics'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            Metrics
+          </button>
+          <button
+            onClick={() => setActiveTab('traces')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'traces'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            Traces
+          </button>
+        </nav>
+      </div>
+
+      {/* Trace Viewer Tab */}
+      {activeTab === 'traces' && (
+        <div className="mb-6">
+          <TraceViewer timeRange={timeRange} />
+        </div>
+      )}
+
+      {/* Metrics Tab */}
+      {activeTab === 'metrics' && (
+        <>
 
       {/* System Metrics */}
       {systemMetrics && (
@@ -221,6 +260,8 @@ export default function ObservabilityDashboard() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
