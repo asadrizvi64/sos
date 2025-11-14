@@ -369,7 +369,7 @@ export class CodeAgentRegistry {
         code: codeToStore,
         inputSchema: input.inputSchema ?? existingAgent.inputSchema,
         outputSchema: input.outputSchema ?? existingAgent.outputSchema,
-        changelog: input.changelog ?? existingAgent.changelog ?? [],
+        changelog: (input.changelog ?? existingAgent.changelog) ?? [],
       });
 
       span.setAttributes({

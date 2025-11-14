@@ -9,7 +9,6 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { PeriodicExportingMetricReader, ConsoleMetricExporter } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, ConsoleSpanExporter } from '@opentelemetry/sdk-trace-base';
@@ -40,7 +39,15 @@ export function initializeTelemetry(): void {
 
   try {
     // Create resource with service information
-    const resource = new Resource({
+    // Resource is an interface, use resourceFromAttributes to create it
+    const { resourceFromAttributes } = require('@opentelemetry/resources');
+    
+    if (!resourceFromAttributes || typeof resourceFromAttributes !== 'function') {
+      console.warn('⚠️ OpenTelemetry resourceFromAttributes not found, disabling OpenTelemetry');
+      return; // Gracefully disable instead of crashing
+    }
+
+    const resource = resourceFromAttributes({
       [SemanticResourceAttributes.SERVICE_NAME]: OTEL_SERVICE_NAME,
       [SemanticResourceAttributes.SERVICE_VERSION]: OTEL_SERVICE_VERSION,
       [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: OTEL_ENVIRONMENT,
@@ -69,19 +76,20 @@ export function initializeTelemetry(): void {
       : new ConsoleMetricExporter();
 
     // Create SDK
+    // Use type assertion to handle version mismatches between packages
     sdk = new NodeSDK({
       resource,
-      traceExporter,
+      traceExporter: traceExporter as any,
       metricReader: new PeriodicExportingMetricReader({
         exporter: metricExporter,
         exportIntervalMillis: 60000, // Export every 60 seconds
       }),
-      spanProcessor: new BatchSpanProcessor(traceExporter, {
+      spanProcessor: new BatchSpanProcessor(traceExporter as any, {
         maxQueueSize: 2048,
         maxExportBatchSize: 512,
         scheduledDelayMillis: 5000,
         exportTimeoutMillis: 30000,
-      }),
+      }) as any,
       instrumentations: [
         getNodeAutoInstrumentations({
           // Disable fs instrumentation to reduce noise
