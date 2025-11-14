@@ -244,6 +244,207 @@ export class GuardrailsService {
   }
 
   /**
+   * Validate output using policies only (GuardrailsAI)
+   * 
+   * This method validates LLM outputs against custom policies
+   * without requiring a JSON Schema.
+   */
+  async validateOutputWithPolicies(
+    output: unknown,
+    policies: Array<{
+      name: string;
+      rule: (data: any) => boolean | { valid: boolean; message?: string; details?: any };
+      severity?: 'low' | 'medium' | 'high' | 'critical';
+    }>,
+    options: {
+      useAPI?: boolean;
+      apiUrl?: string;
+      apiKey?: string;
+    } = {}
+  ): Promise<ValidationResult & { violations?: Array<{
+    policy: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    message: string;
+    details?: Record<string, any>;
+  }> }> {
+    try {
+      const validationResult = await guardrailsAIService.validate(output, {
+        policies,
+        useAPI: options.useAPI,
+        apiUrl: options.apiUrl,
+        apiKey: options.apiKey,
+      });
+
+      if (validationResult.valid) {
+        return {
+          valid: true,
+          warnings: validationResult.warnings,
+        };
+      } else {
+        // Extract violations from policy validation
+        const violations = validationResult.policyValidation?.violations || [];
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        for (const violation of violations) {
+          if (violation.severity === 'critical' || violation.severity === 'high') {
+            errors.push(`Policy ${violation.policy}: ${violation.message}`);
+          } else {
+            warnings.push(`Policy ${violation.policy}: ${violation.message}`);
+          }
+        }
+
+        return {
+          valid: false,
+          errors: errors.length > 0 ? errors : undefined,
+          warnings: warnings.length > 0 ? warnings : undefined,
+          violations,
+        };
+      }
+    } catch (error: any) {
+      return {
+        valid: false,
+        errors: [`Policy validation failed: ${error.message}`],
+      };
+    }
+  }
+
+  /**
+   * Get predefined policies for common use cases
+   */
+  getPredefinedPolicies(): Record<string, Array<{
+    name: string;
+    rule: (data: any) => boolean | { valid: boolean; message?: string; details?: any };
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+  }>> {
+    return {
+      // Content safety policies
+      contentSafety: [
+        {
+          name: 'no_pii',
+          severity: 'high',
+          rule: (data: any) => {
+            const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+            // Check for common PII patterns
+            const piiPatterns = [
+              /\b\d{3}-\d{2}-\d{4}\b/, // SSN
+              /\b\d{16}\b/, // Credit card
+              /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email
+              /\b\d{3}-\d{3}-\d{4}\b/, // Phone
+            ];
+            
+            for (const pattern of piiPatterns) {
+              if (pattern.test(dataStr)) {
+                return {
+                  valid: false,
+                  message: 'Potential PII detected in output',
+                  details: { pattern: pattern.toString() },
+                };
+              }
+            }
+            return true;
+          },
+        },
+        {
+          name: 'no_secrets',
+          severity: 'critical',
+          rule: (data: any) => {
+            const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+            // Check for common secret patterns
+            const secretPatterns = [
+              /(?:api[_-]?key|apikey)\s*[:=]\s*['"]?[A-Za-z0-9_-]{20,}['"]?/i,
+              /(?:secret|password|token)\s*[:=]\s*['"]?[A-Za-z0-9_-]{16,}['"]?/i,
+              /(?:bearer|authorization)\s+[A-Za-z0-9_-]{20,}/i,
+            ];
+            
+            for (const pattern of secretPatterns) {
+              if (pattern.test(dataStr)) {
+                return {
+                  valid: false,
+                  message: 'Potential secret/credential detected in output',
+                  details: { pattern: pattern.toString() },
+                };
+              }
+            }
+            return true;
+          },
+        },
+      ],
+
+      // Data quality policies
+      dataQuality: [
+        {
+          name: 'non_empty',
+          severity: 'medium',
+          rule: (data: any) => {
+            if (data === null || data === undefined) {
+              return { valid: false, message: 'Output is null or undefined' };
+            }
+            if (typeof data === 'string' && data.trim().length === 0) {
+              return { valid: false, message: 'Output is empty string' };
+            }
+            if (Array.isArray(data) && data.length === 0) {
+              return { valid: false, message: 'Output is empty array' };
+            }
+            if (typeof data === 'object' && Object.keys(data).length === 0) {
+              return { valid: false, message: 'Output is empty object' };
+            }
+            return true;
+          },
+        },
+        {
+          name: 'max_length',
+          severity: 'low',
+          rule: (data: any) => {
+            const maxLength = 100000; // 100KB
+            const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+            if (dataStr.length > maxLength) {
+              return {
+                valid: false,
+                message: `Output exceeds maximum length: ${dataStr.length} > ${maxLength}`,
+                details: { length: dataStr.length, maxLength },
+              };
+            }
+            return true;
+          },
+        },
+      ],
+
+      // Format policies
+      format: [
+        {
+          name: 'valid_json',
+          severity: 'high',
+          rule: (data: any) => {
+            if (typeof data === 'string') {
+              try {
+                JSON.parse(data);
+                return true;
+              } catch {
+                return { valid: false, message: 'Output is not valid JSON' };
+              }
+            }
+            return true;
+          },
+        },
+        {
+          name: 'required_fields',
+          severity: 'high',
+          rule: (data: any) => {
+            // This is a template - actual required fields should be passed as context
+            if (typeof data === 'object' && data !== null) {
+              // Example: check for common required fields
+              // In practice, this should be configurable
+              return true;
+            }
+            return true;
+          },
+        },
+      ],
+    };
+  }
+
+  /**
    * Check content safety
    */
   checkContentSafety(content: string): SafetyResult {

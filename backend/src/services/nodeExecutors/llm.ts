@@ -552,6 +552,25 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
           }
         }
 
+        // Build policies from config
+        let policies = nodeConfig.validationPolicies;
+        
+        // Add predefined policies if specified
+        if (nodeConfig.usePredefinedPolicies) {
+          const predefinedPolicies = guardrailsService.getPredefinedPolicies();
+          const policySets = Array.isArray(nodeConfig.usePredefinedPolicies)
+            ? nodeConfig.usePredefinedPolicies
+            : [nodeConfig.usePredefinedPolicies];
+          
+          const allPolicies: any[] = policies || [];
+          for (const policySet of policySets) {
+            if (predefinedPolicies[policySet]) {
+              allPolicies.push(...predefinedPolicies[policySet]);
+            }
+          }
+          policies = allPolicies;
+        }
+
         const validationResult = await guardrailsService.validateOutputWithJSONSchema(
           outputToValidate,
           jsonSchema,
@@ -559,7 +578,7 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
             coerceTypes: nodeConfig.coerceTypes !== false,
             removeAdditional: nodeConfig.removeAdditional === true,
             useDefaults: nodeConfig.useDefaults !== false,
-            policies: nodeConfig.validationPolicies,
+            policies: policies,
             useAPI: nodeConfig.useGuardrailsAIAPI === true,
             apiUrl: nodeConfig.guardrailsAIAPIUrl,
             apiKey: nodeConfig.guardrailsAIAPIKey,
@@ -615,6 +634,118 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
       }
     } catch (error: any) {
       console.warn('[LLM Executor] JSON Schema validation failed:', error);
+      // Continue execution if validation fails
+    }
+
+    // Guardrails: Validate output with policies only (if enabled and no JSON Schema)
+    try {
+      const enablePolicyValidation = await featureFlagService.isEnabled(
+        'enable_policy_validation',
+        context.userId,
+        (context as any).workspaceId
+      );
+
+      if (enablePolicyValidation && !nodeConfig.jsonSchema && !nodeConfig.outputSchema) {
+        // Build policies from config
+        let policies = nodeConfig.validationPolicies;
+        
+        // Add predefined policies if specified
+        if (nodeConfig.usePredefinedPolicies) {
+          const predefinedPolicies = guardrailsService.getPredefinedPolicies();
+          const policySets = Array.isArray(nodeConfig.usePredefinedPolicies)
+            ? nodeConfig.usePredefinedPolicies
+            : [nodeConfig.usePredefinedPolicies];
+          
+          const allPolicies: any[] = policies || [];
+          for (const policySet of policySets) {
+            if (predefinedPolicies[policySet]) {
+              allPolicies.push(...predefinedPolicies[policySet]);
+            }
+          }
+          policies = allPolicies;
+        }
+
+        if (policies && policies.length > 0) {
+          // Try to parse output as JSON if it's a string
+          let outputToValidate: any = validatedOutput;
+          if (typeof validatedOutput === 'string') {
+            try {
+              outputToValidate = JSON.parse(validatedOutput);
+            } catch {
+              // If parsing fails, validate as string
+              outputToValidate = validatedOutput;
+            }
+          }
+
+          const policyResult = await guardrailsService.validateOutputWithPolicies(
+            outputToValidate,
+            policies,
+            {
+              useAPI: nodeConfig.useGuardrailsAIAPI === true,
+              apiUrl: nodeConfig.guardrailsAIAPIUrl,
+              apiKey: nodeConfig.guardrailsAIAPIKey,
+            }
+          );
+
+          span.setAttributes({
+            'guardrails.policy_validation': policyResult.valid ? 'passed' : 'failed',
+          });
+
+          if (policyResult.violations && policyResult.violations.length > 0) {
+            const criticalViolations = policyResult.violations.filter(
+              v => v.severity === 'critical' || v.severity === 'high'
+            );
+            const warningViolations = policyResult.violations.filter(
+              v => v.severity === 'low' || v.severity === 'medium'
+            );
+
+            if (criticalViolations.length > 0) {
+              span.setAttributes({
+                'guardrails.policy_violations_critical': criticalViolations.length,
+                'guardrails.policy_violations': JSON.stringify(
+                  criticalViolations.map(v => ({ policy: v.policy, message: v.message }))
+                ),
+              });
+            }
+
+            if (warningViolations.length > 0) {
+              span.setAttributes({
+                'guardrails.policy_violations_warnings': warningViolations.length,
+              });
+            }
+          }
+
+          if (!policyResult.valid) {
+            // If strict validation is enabled, fail the request
+            if (nodeConfig.strictPolicyValidation === true) {
+              span.setStatus({ 
+                code: SpanStatusCode.ERROR, 
+                message: 'Policy validation failed' 
+              });
+              span.end();
+
+              return {
+                success: false,
+                error: {
+                  message: `Policy validation failed: ${policyResult.errors?.join(', ')}`,
+                  code: 'POLICY_VALIDATION_ERROR',
+                  details: {
+                    errors: policyResult.errors,
+                    warnings: policyResult.warnings,
+                    violations: policyResult.violations,
+                    output: validatedOutput,
+                  },
+                },
+              };
+            } else {
+              // Log warning but continue
+              console.warn('[LLM Executor] Policy validation failed:', policyResult.errors);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn('[LLM Executor] Policy validation failed:', error);
       // Continue execution if validation fails
     }
 
