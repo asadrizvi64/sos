@@ -5,6 +5,7 @@ import { langchainService } from './langchainService';
 import { similarityService, SimilarityMethod } from './similarityService';
 import { guardrailsAIService, GuardrailsAIOptions, GuardrailsAIValidationResult } from './guardrailsAIService';
 import { rateLimitService } from './rateLimitService';
+import { rudderstackService } from './rudderstackService';
 import { db } from '../config/database';
 import { promptSimilarityLogs } from '../../drizzle/schema';
 import { createId } from '@paralleldrive/cuid2';
@@ -635,8 +636,9 @@ export class GuardrailsService {
         );
 
         if (enableLogging) {
+          const similarityLogId = createId();
           await db.insert(promptSimilarityLogs).values({
-            id: createId(),
+            id: similarityLogId,
             userId: userId || null,
             workflowExecutionId: workflowExecutionId || null,
             nodeId: nodeId || null,
@@ -656,6 +658,33 @@ export class GuardrailsService {
             timestamp: new Date(),
             createdAt: new Date(),
           });
+
+          // Forward to RudderStack for data warehouse ingestion
+          if (userId && workspaceId) {
+            try {
+              rudderstackService.forwardSimilarityLog({
+                similarityLogId,
+                userId,
+                workspaceId,
+                organizationId: organizationId || undefined,
+                prompt: prompt.length > 1000 ? prompt.substring(0, 1000) + '...' : prompt,
+                similarityScore: maxSimilarity,
+                similarityScorePercent: Math.round(maxSimilarity * 100),
+                flaggedReference: matchedPrompt ? createId() : undefined,
+                flaggedContent: matchedPrompt ? (matchedPrompt.length > 1000 ? matchedPrompt.substring(0, 1000) + '...' : matchedPrompt) : undefined,
+                actionTaken: isSimilar ? 'blocked' : 'allowed',
+                threshold: threshold || undefined,
+                method,
+                workflowExecutionId: workflowExecutionId || undefined,
+                nodeId: nodeId || undefined,
+                traceId: traceId || undefined,
+                timestamp: new Date().toISOString(),
+              });
+            } catch (rudderError: any) {
+              // Log but don't throw - RudderStack forwarding should not break similarity logging
+              console.warn('[Guardrails] Failed to forward similarity log to RudderStack:', rudderError);
+            }
+          }
         }
       } catch (error: any) {
         console.error('[Guardrails] Failed to log similarity check:', error);

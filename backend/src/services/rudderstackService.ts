@@ -413,6 +413,60 @@ class RudderStackService {
   }
 
   /**
+   * Forward similarity log to RudderStack for data warehouse ingestion
+   */
+  forwardSimilarityLog(
+    similarityLog: {
+      similarityLogId: string;
+      userId: string;
+      workspaceId: string;
+      organizationId?: string;
+      prompt: string;
+      similarityScore: number;
+      similarityScorePercent: number;
+      flaggedReference?: string;
+      flaggedContent?: string;
+      actionTaken: string;
+      threshold?: number;
+      method: string;
+      workflowExecutionId?: string;
+      nodeId?: string;
+      traceId?: string;
+      timestamp: string;
+    }
+  ): void {
+    if (!this.enabled || !this.client) return;
+
+    try {
+      this.track(
+        similarityLog.userId,
+        'prompt_similarity_logged',
+        {
+          similarity_log_id: similarityLog.similarityLogId,
+          prompt: similarityLog.prompt,
+          similarity_score: similarityLog.similarityScore,
+          similarity_score_percent: similarityLog.similarityScorePercent,
+          flagged_reference: similarityLog.flaggedReference,
+          flagged_content: similarityLog.flaggedContent,
+          action_taken: similarityLog.actionTaken,
+          threshold: similarityLog.threshold,
+          method: similarityLog.method,
+          workflow_execution_id: similarityLog.workflowExecutionId,
+          node_id: similarityLog.nodeId,
+          timestamp: similarityLog.timestamp,
+        },
+        {
+          workspaceId: similarityLog.workspaceId,
+          organizationId: similarityLog.organizationId,
+          traceId: similarityLog.traceId,
+        }
+      );
+    } catch (error) {
+      console.warn('Failed to forward similarity log to RudderStack:', error);
+    }
+  }
+
+  /**
    * Get queue statistics
    */
   getQueueStats(): { queueLength: number; processing: boolean } {
