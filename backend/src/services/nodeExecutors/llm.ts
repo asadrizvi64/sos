@@ -1,12 +1,13 @@
 import { NodeExecutionContext, NodeExecutionResult } from '@sos/shared';
 import { aiService } from '../aiService';
 import { db } from '../../config/database';
-import { modelCostLogs } from '../../../drizzle/schema';
+import { modelCostLogs, organizations } from '../../../drizzle/schema';
 import { createId } from '@paralleldrive/cuid2';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { featureFlagService } from '../featureFlagService';
 import { costCalculationService } from '../costCalculationService';
 import { guardrailsService } from '../guardrailsService';
+import { eq } from 'drizzle-orm';
 
 export async function executeLLM(context: NodeExecutionContext): Promise<NodeExecutionResult> {
   const { input, config } = context;
@@ -113,6 +114,71 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
     } catch (error: any) {
       console.warn('[LLM Executor] Prompt length check failed:', error);
       // Continue execution if length check fails
+    }
+
+    // Guardrails: Apply cost tiering based on plan (if enabled)
+    try {
+      const enableCostTiering = await featureFlagService.isEnabled(
+        'enable_cost_tiering',
+        context.userId,
+        (context as any).workspaceId
+      );
+
+      if (enableCostTiering) {
+        // Get organization plan
+        let organizationPlan: 'free' | 'pro' | 'team' | 'enterprise' = 'free';
+        const organizationId = (context as any).organizationId;
+        
+        if (organizationId) {
+          try {
+            const [org] = await db
+              .select({ plan: organizations.plan })
+              .from(organizations)
+              .where(eq(organizations.id, organizationId))
+              .limit(1);
+            
+            if (org) {
+              organizationPlan = org.plan as 'free' | 'pro' | 'team' | 'enterprise';
+            }
+          } catch (error: any) {
+            console.warn('[LLM Executor] Failed to fetch organization plan:', error);
+            // Default to free plan if fetch fails
+          }
+        }
+
+        // Apply cost tiering
+        const tieringResult = guardrailsService.applyCostTiering({
+          plan: organizationPlan,
+          requestedModel: modelName,
+          provider,
+        });
+
+        span.setAttributes({
+          'guardrails.plan': tieringResult.plan,
+          'guardrails.original_model': tieringResult.originalModel,
+          'guardrails.recommended_model': tieringResult.recommendedModel,
+          'guardrails.model_downgraded': tieringResult.downgraded,
+          'guardrails.tiering_reason': tieringResult.reason,
+        });
+
+        // Update model if downgraded
+        if (tieringResult.downgraded && tieringResult.recommendedModel !== modelName) {
+          const originalModelName = modelName;
+          modelName = tieringResult.recommendedModel;
+          
+          span.setAttributes({
+            'guardrails.model_changed': true,
+            'guardrails.original_model_requested': originalModelName,
+            'guardrails.final_model': modelName,
+          });
+
+          // Log the downgrade
+          console.log(`[LLM Executor] Cost tiering: ${tieringResult.plan} plan - ${originalModelName} → ${modelName}`);
+        }
+      }
+    } catch (error: any) {
+      console.warn('[LLM Executor] Cost tiering check failed:', error);
+      // Continue execution if cost tiering fails
     }
 
     // Guardrails: Determine region-based routing (if enabled)

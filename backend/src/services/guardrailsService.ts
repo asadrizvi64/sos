@@ -61,6 +61,15 @@ export interface RegionRoutingResult {
   dataResidency?: string; // Data residency requirement (e.g., 'EU', 'US', 'global')
 }
 
+export interface CostTieringResult {
+  originalModel: string;
+  recommendedModel: string;
+  reason: string;
+  plan: 'free' | 'pro' | 'team' | 'enterprise';
+  downgraded: boolean; // Whether model was downgraded due to plan
+  allowedModels?: string[]; // Models allowed for this plan
+}
+
 /**
  * Guardrails Service
  */
@@ -638,6 +647,116 @@ export class GuardrailsService {
       reason,
       requiresCompliance,
       dataResidency: dataResidency || (requiresCompliance ? 'region-specific' : undefined),
+    };
+  }
+
+  /**
+   * Apply cost tiering based on user/organization plan
+   * 
+   * Free plan users are automatically routed to cheaper models (GPT-3.5, Claude Haiku)
+   * to control costs. Higher tier plans can use premium models.
+   * 
+   * @param options - Cost tiering configuration
+   * @returns Cost tiering result with recommended model
+   */
+  applyCostTiering(options: {
+    plan: 'free' | 'pro' | 'team' | 'enterprise';
+    requestedModel: string;
+    provider: 'openai' | 'anthropic' | 'google';
+    forceDowngrade?: boolean; // Force downgrade even for paid plans (for testing)
+  }): CostTieringResult {
+    const { plan, requestedModel, provider, forceDowngrade = false } = options;
+
+    // Define allowed models per plan tier
+    const planModelLimits: Record<string, Record<string, string[]>> = {
+      free: {
+        openai: ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k'],
+        anthropic: ['claude-3-haiku', 'claude-instant-1.2'],
+        google: ['gemini-pro', 'gemini-1.5-flash'],
+      },
+      pro: {
+        openai: ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'gpt-4', 'gpt-4-turbo'],
+        anthropic: ['claude-3-haiku', 'claude-3-sonnet', 'claude-3-opus'],
+        google: ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+      },
+      team: {
+        openai: ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'gpt-4', 'gpt-4-turbo', 'gpt-4o'],
+        anthropic: ['claude-3-haiku', 'claude-3-sonnet', 'claude-3-opus', 'claude-3-5-sonnet'],
+        google: ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+      },
+      enterprise: {
+        openai: ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
+        anthropic: ['claude-3-haiku', 'claude-3-sonnet', 'claude-3-opus', 'claude-3-5-sonnet'],
+        google: ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'],
+      },
+    };
+
+    const allowedModels = planModelLimits[plan]?.[provider] || [];
+    const isModelAllowed = allowedModels.some(model => 
+      requestedModel.toLowerCase().includes(model.toLowerCase()) || 
+      model.toLowerCase().includes(requestedModel.toLowerCase())
+    );
+
+    let recommendedModel = requestedModel;
+    let downgraded = false;
+    let reason = `Plan: ${plan} - Model allowed`;
+
+    // If model is not allowed for this plan, downgrade to cheapest allowed model
+    if (!isModelAllowed || forceDowngrade || plan === 'free') {
+      if (plan === 'free' || forceDowngrade) {
+        // Free plan: always use cheapest model
+        if (provider === 'openai') {
+          recommendedModel = 'gpt-3.5-turbo';
+          reason = `Free plan: automatically routed to GPT-3.5-turbo (requested: ${requestedModel})`;
+        } else if (provider === 'anthropic') {
+          recommendedModel = 'claude-3-haiku';
+          reason = `Free plan: automatically routed to Claude 3 Haiku (requested: ${requestedModel})`;
+        } else if (provider === 'google') {
+          recommendedModel = 'gemini-1.5-flash';
+          reason = `Free plan: automatically routed to Gemini 1.5 Flash (requested: ${requestedModel})`;
+        }
+        downgraded = true;
+      } else {
+        // Paid plan but model not allowed: use highest tier allowed model
+        const highestAllowed = allowedModels[allowedModels.length - 1];
+        if (highestAllowed) {
+          recommendedModel = highestAllowed;
+          reason = `${plan} plan: ${requestedModel} not available, using ${highestAllowed}`;
+          downgraded = true;
+        }
+      }
+    }
+
+    // Check if requested model is premium and plan doesn't support it
+    const premiumModels = {
+      openai: ['gpt-4', 'gpt-4-turbo', 'gpt-4o'],
+      anthropic: ['claude-3-opus', 'claude-3-5-sonnet'],
+      google: ['gemini-1.5-pro'],
+    };
+
+    const isPremium = premiumModels[provider]?.some(model => 
+      requestedModel.toLowerCase().includes(model.toLowerCase())
+    );
+
+    if (isPremium && plan === 'free') {
+      downgraded = true;
+      if (provider === 'openai') {
+        recommendedModel = 'gpt-3.5-turbo';
+      } else if (provider === 'anthropic') {
+        recommendedModel = 'claude-3-haiku';
+      } else if (provider === 'google') {
+        recommendedModel = 'gemini-1.5-flash';
+      }
+      reason = `Free plan: premium model ${requestedModel} not available, using ${recommendedModel}`;
+    }
+
+    return {
+      originalModel: requestedModel,
+      recommendedModel,
+      reason,
+      plan,
+      downgraded,
+      allowedModels,
     };
   }
 
