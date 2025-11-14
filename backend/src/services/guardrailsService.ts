@@ -42,6 +42,18 @@ export interface AbuseCheckResult {
   abuseType?: string;
   confidence: number; // 0-1
   action: 'allow' | 'warn' | 'block';
+  mlScore?: number; // ML-based abuse score (0-1)
+  patterns?: Array<{
+    type: string;
+    score: number;
+    description: string;
+  }>;
+  features?: {
+    entropy?: number;
+    repetitionScore?: number;
+    unusualCharRatio?: number;
+    semanticSimilarity?: number;
+  };
 }
 
 export interface PromptLengthResult {
@@ -104,6 +116,38 @@ export class GuardrailsService {
       /(?:spam|scam|phishing|fraud)/i,
       /(?:harass|threat|violence|hate)/i,
     ];
+  }
+
+  /**
+   * Initialize known abuse patterns with embeddings (async, can be called separately)
+   */
+  private async initializeAbusePatterns(): Promise<void> {
+    // Known abuse text patterns for ML-based detection
+    const abuseTexts = [
+      'spam message',
+      'phishing attempt',
+      'scam alert',
+      'fraudulent activity',
+      'harassment content',
+      'threatening language',
+      'hate speech',
+      'violence promotion',
+      'malicious code injection',
+      'unauthorized access attempt',
+      'data exfiltration',
+      'credential theft',
+    ];
+
+    // Generate embeddings for known abuse patterns (lazy loading)
+    // This will be done on first use to avoid blocking initialization
+    try {
+      for (const text of abuseTexts) {
+        const embedding = await this.generatePromptEmbedding(text);
+        this.knownAbuseEmbeddings.push({ text, embedding });
+      }
+    } catch (error: any) {
+      console.warn('[Guardrails] Failed to initialize abuse pattern embeddings:', error);
+    }
   }
 
   /**
