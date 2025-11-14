@@ -481,13 +481,27 @@ export async function executeAgent(
     const executionTime = Date.now() - startTime;
     const finalTraceId = traceId || `${executionId}-${Date.now()}`;
     
-    // Update OpenTelemetry span
+    // Update OpenTelemetry span with enhanced cost and performance data
+    const tokensUsed = typeof result.tokensUsed === 'number' 
+      ? result.tokensUsed 
+      : (result.tokensUsed as any)?.total || 0;
+    const cost = result.cost || 0;
+    
     otelSpan.setAttributes({
       'agent.status': 'success',
       'agent.latency_ms': executionTime,
-      'agent.tokens_used': result.tokensUsed || 0,
-      'agent.cost': result.cost || 0,
+      'agent.tokens_used': tokensUsed,
+      'agent.cost': cost,
       'agent.iterations': result.intermediateSteps?.length || 0,
+      // Enhanced cost metrics
+      'agent.cost_per_iteration': result.intermediateSteps?.length > 0 
+        ? cost / result.intermediateSteps.length 
+        : 0,
+      'agent.tokens_per_iteration': result.intermediateSteps?.length > 0 
+        ? tokensUsed / result.intermediateSteps.length 
+        : 0,
+      'agent.cost_per_token': tokensUsed > 0 ? cost / tokensUsed : 0,
+      'agent.tokens_per_second': executionTime > 0 ? (tokensUsed / (executionTime / 1000)) : 0,
     });
     otelSpan.setStatus({ code: SpanStatusCode.OK });
     otelSpan.end();

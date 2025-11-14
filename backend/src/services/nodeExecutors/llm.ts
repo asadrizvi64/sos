@@ -283,11 +283,28 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
             traceId
           );
 
-          if (similarityResult.similar) {
+          // Always add similarity attributes, whether blocked or passed
+          span.setAttributes({
+            'guardrails.similarity_check': similarityResult.similar ? 'blocked' : 'passed',
+            'guardrails.similarity_score': similarityResult.similarityScore || 0,
+            'guardrails.similarity_threshold': similarityThreshold,
+            'guardrails.similarity_method': 'cosine',
+            'guardrails.similarity_matched_prompts_count': similarityResult.matchedPrompts?.length || 0,
+          });
+
+          // Add matched prompts if available (truncated for span attributes)
+          if (similarityResult.matchedPrompts && similarityResult.matchedPrompts.length > 0) {
             span.setAttributes({
-              'guardrails.similarity_check': 'blocked',
-              'guardrails.similarity_score': similarityResult.similarityScore,
+              'guardrails.similarity_matched_prompts': JSON.stringify(
+                similarityResult.matchedPrompts.slice(0, 5).map((p: any) => ({
+                  id: p.id,
+                  score: p.score,
+                }))
+              ),
             });
+          }
+
+          if (similarityResult.similar) {
             span.setStatus({ code: SpanStatusCode.ERROR, message: 'Prompt similarity check failed' });
             span.end();
 
@@ -364,14 +381,22 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
 
     const latencyMs = Date.now() - startTime;
 
-    // Update span with LLM execution details
+    // Update span with LLM execution details including enhanced cost and similarity data
     span.setAttributes({
       'llm.input_tokens': inputTokens,
       'llm.output_tokens': outputTokens,
       'llm.total_tokens': totalTokens,
       'llm.cost_usd': cost,
+      'llm.cost_input_usd': costResult.inputCost || 0,
+      'llm.cost_output_usd': costResult.outputCost || 0,
+      'llm.rate_per_1k_input': costResult.ratePer1k?.input || 0,
+      'llm.rate_per_1k_output': costResult.ratePer1k?.output || 0,
+      'llm.cost_usd_cents': costUsdCents || 0,
       'llm.latency_ms': latencyMs,
       'llm.status': 'success',
+      // Cost efficiency metrics
+      'llm.cost_per_token': totalTokens > 0 ? cost / totalTokens : 0,
+      'llm.tokens_per_second': latencyMs > 0 ? (totalTokens / (latencyMs / 1000)) : 0,
     });
     span.setStatus({ code: SpanStatusCode.OK });
     span.end();
@@ -472,12 +497,15 @@ export async function executeLLM(context: NodeExecutionContext): Promise<NodeExe
     const latencyMs = Date.now() - startTime;
     const llmEndTime = new Date();
 
-    // Update span with error
+    // Update span with error (still include cost/similarity data if available)
     span.setAttributes({
       'llm.status': 'error',
       'llm.latency_ms': latencyMs,
       'llm.error': error.message || 'LLM execution failed',
       'llm.error_code': error.code || 'LLM_ERROR',
+      // Include any cost data that might have been calculated before the error
+      'llm.cost_usd': 0, // No cost for failed requests
+      'llm.total_tokens': 0, // No tokens for failed requests
     });
     span.recordException(error);
     span.setStatus({
