@@ -4,6 +4,7 @@ import { langchainService } from './langchainService';
 import { redis } from '../config/redis';
 import { stackstormBullMQIntegration } from './stackstormBullMQIntegration';
 import { stackstormWorkflowService } from './stackstormWorkflowService';
+import { stackstormService } from './stackstormService';
 import { stackstormConfig } from '../config/stackstorm';
 import { featureFlagService } from './featureFlagService';
 import { observabilityService } from './observabilityService';
