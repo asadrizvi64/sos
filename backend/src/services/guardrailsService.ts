@@ -1130,41 +1130,262 @@ export class GuardrailsService {
   }
 
   /**
-   * Check for abuse
+   * Check for abuse with ML-based pattern detection
    */
-  checkAbuse(input: string): AbuseCheckResult {
-    // Check known abuse patterns
+  async checkAbuse(
+    input: string,
+    options: {
+      useMLDetection?: boolean;
+      mlThreshold?: number;
+      userId?: string;
+      checkSemanticSimilarity?: boolean;
+    } = {}
+  ): Promise<AbuseCheckResult> {
+    const {
+      useMLDetection = true,
+      mlThreshold = 0.7,
+      userId,
+      checkSemanticSimilarity = true,
+    } = options;
+
+    const patterns: Array<{ type: string; score: number; description: string }> = [];
+    let mlScore = 0;
+    const features: AbuseCheckResult['features'] = {};
+
+    // Step 1: Check known abuse patterns (regex-based)
     for (const pattern of this.knownAbusePatterns) {
       if (pattern.test(input)) {
+        patterns.push({
+          type: 'regex_pattern',
+          score: 0.9,
+          description: 'Matched known abuse pattern',
+        });
         return {
           isAbuse: true,
           abuseType: 'pattern_match',
-          confidence: 0.8,
+          confidence: 0.9,
           action: 'block',
+          mlScore: 0.9,
+          patterns,
         };
       }
     }
 
-    // Check for rapid repeated requests (would need rate limiting context)
-    // This is a placeholder - in production, check against rate limit store
+    // Step 2: ML-based feature extraction
+    if (useMLDetection) {
+      // Calculate text entropy (measure of randomness/unusualness)
+      const entropy = this.calculateEntropy(input);
+      features.entropy = entropy;
+      
+      // High entropy might indicate obfuscated or encoded abuse
+      if (entropy > 4.5) {
+        const entropyScore = Math.min((entropy - 4.5) / 1.5, 1.0);
+        patterns.push({
+          type: 'high_entropy',
+          score: entropyScore * 0.6,
+          description: `High entropy detected: ${entropy.toFixed(2)}`,
+        });
+        mlScore += entropyScore * 0.15;
+      }
 
-    // Check for suspicious content
+      // Calculate repetition score (spam often has high repetition)
+      const repetitionScore = this.calculateRepetitionScore(input);
+      features.repetitionScore = repetitionScore;
+      
+      if (repetitionScore > 0.7) {
+        patterns.push({
+          type: 'high_repetition',
+          score: repetitionScore * 0.8,
+          description: `High repetition detected: ${(repetitionScore * 100).toFixed(1)}%`,
+        });
+        mlScore += repetitionScore * 0.2;
+      }
+
+      // Calculate unusual character ratio
+      const unusualCharRatio = this.calculateUnusualCharRatio(input);
+      features.unusualCharRatio = unusualCharRatio;
+      
+      if (unusualCharRatio > 0.3) {
+        patterns.push({
+          type: 'unusual_characters',
+          score: unusualCharRatio * 0.7,
+          description: `Unusual characters: ${(unusualCharRatio * 100).toFixed(1)}%`,
+        });
+        mlScore += unusualCharRatio * 0.15;
+      }
+
+      // Step 3: Semantic similarity to known abuse patterns (ML-based)
+      if (checkSemanticSimilarity && this.knownAbuseEmbeddings.length > 0) {
+        try {
+          const inputEmbedding = await this.generatePromptEmbedding(input);
+          let maxSimilarity = 0;
+          let mostSimilarAbuse: string | undefined;
+
+          for (const abusePattern of this.knownAbuseEmbeddings) {
+            const similarity = similarityService.calculate(
+              inputEmbedding,
+              abusePattern.embedding,
+              'cosine'
+            );
+            const normalizedScore = similarity.normalizedScore ?? similarity.score;
+            
+            if (normalizedScore > maxSimilarity) {
+              maxSimilarity = normalizedScore;
+              mostSimilarAbuse = abusePattern.text;
+            }
+          }
+
+          features.semanticSimilarity = maxSimilarity;
+
+          if (maxSimilarity > 0.75) {
+            patterns.push({
+              type: 'semantic_similarity',
+              score: maxSimilarity,
+              description: `Semantically similar to known abuse: ${mostSimilarAbuse}`,
+            });
+            mlScore += maxSimilarity * 0.3;
+          }
+        } catch (error: any) {
+          console.warn('[Guardrails] ML-based semantic similarity check failed:', error);
+        }
+      }
+
+      // Step 4: Behavioral patterns (if user context available)
+      if (userId) {
+        // Check for rapid repeated similar requests
+        // This would require rate limiting/request history context
+        // Placeholder for future implementation
+      }
+
+      // Normalize ML score to 0-1 range
+      mlScore = Math.min(mlScore, 1.0);
+    }
+
+    // Step 5: Check content safety (existing method)
     const safetyCheck = this.checkContentSafety(input);
-    if (!safetyCheck.safe) {
-      const hasCritical = safetyCheck.violations?.some(v => v.severity === 'critical');
+    if (!safetyCheck.safe || (safetyCheck.score && safetyCheck.score < 0.5)) {
+      const hasCritical = safetyCheck.violations?.some(
+        v => v.severity === 'critical' || v.severity === 'high'
+      );
+      const safetyScore = 1 - (safetyCheck.score || 0);
+      
+      patterns.push({
+        type: 'content_safety',
+        score: safetyScore,
+        description: `Content safety violation: ${safetyCheck.violations?.map(v => v.type).join(', ')}`,
+      });
+
+      // Combine ML score with safety score
+      const combinedScore = Math.max(mlScore, safetyScore);
+      
       return {
-        isAbuse: hasCritical || false,
+        isAbuse: hasCritical || combinedScore > mlThreshold,
         abuseType: 'content_safety',
-        confidence: 1 - (safetyCheck.score || 0),
-        action: hasCritical ? 'block' : 'warn',
+        confidence: combinedScore,
+        action: hasCritical || combinedScore > 0.8 ? 'block' : 'warn',
+        mlScore: combinedScore,
+        patterns,
+        features,
       };
     }
 
+    // Step 6: Final decision based on ML score
+    const isAbuse = mlScore > mlThreshold;
+    const confidence = mlScore;
+
     return {
-      isAbuse: false,
-      confidence: 0,
-      action: 'allow',
+      isAbuse,
+      abuseType: isAbuse ? 'ml_detection' : undefined,
+      confidence,
+      action: isAbuse 
+        ? (mlScore > 0.8 ? 'block' : 'warn')
+        : 'allow',
+      mlScore,
+      patterns: patterns.length > 0 ? patterns : undefined,
+      features: Object.keys(features).length > 0 ? features : undefined,
     };
+  }
+
+  /**
+   * Calculate text entropy (Shannon entropy)
+   * Higher entropy indicates more randomness/unusualness
+   */
+  private calculateEntropy(text: string): number {
+    if (text.length === 0) return 0;
+
+    const charCounts: Record<string, number> = {};
+    for (const char of text) {
+      charCounts[char] = (charCounts[char] || 0) + 1;
+    }
+
+    let entropy = 0;
+    const length = text.length;
+
+    for (const count of Object.values(charCounts)) {
+      const probability = count / length;
+      entropy -= probability * Math.log2(probability);
+    }
+
+    return entropy;
+  }
+
+  /**
+   * Calculate repetition score (0-1)
+   * Higher score indicates more repetition (common in spam)
+   */
+  private calculateRepetitionScore(text: string): number {
+    if (text.length < 10) return 0;
+
+    // Check for repeated words
+    const words = text.toLowerCase().split(/\s+/);
+    const wordCounts: Record<string, number> = {};
+    
+    for (const word of words) {
+      if (word.length > 2) { // Ignore very short words
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+      }
+    }
+
+    const totalWords = words.length;
+    let repeatedWords = 0;
+    
+    for (const count of Object.values(wordCounts)) {
+      if (count > 1) {
+        repeatedWords += count - 1; // Count repetitions beyond first occurrence
+      }
+    }
+
+    // Check for repeated character sequences
+    let charRepetition = 0;
+    for (let i = 0; i < text.length - 3; i++) {
+      const seq = text.substring(i, i + 3);
+      const matches = (text.match(new RegExp(seq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+      if (matches > 2) {
+        charRepetition += matches - 2;
+      }
+    }
+
+    const wordRepetitionScore = Math.min(repeatedWords / totalWords, 1.0);
+    const charRepetitionScore = Math.min(charRepetition / text.length, 1.0);
+
+    return Math.max(wordRepetitionScore, charRepetitionScore * 0.5);
+  }
+
+  /**
+   * Calculate ratio of unusual characters (non-alphanumeric, non-whitespace)
+   */
+  private calculateUnusualCharRatio(text: string): number {
+    if (text.length === 0) return 0;
+
+    let unusualChars = 0;
+    for (const char of text) {
+      // Check if character is not alphanumeric, whitespace, or common punctuation
+      if (!/[a-zA-Z0-9\s.,!?;:'"()-]/.test(char)) {
+        unusualChars++;
+      }
+    }
+
+    return unusualChars / text.length;
   }
 
   /**
