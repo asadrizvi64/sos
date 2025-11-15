@@ -364,6 +364,7 @@ export async function executeCode(
 }
 
 function executeJavaScript(code: string, input: Record<string, unknown>): NodeExecutionResult {
+  const memoryBefore = process.memoryUsage();
   try {
     // Create a sandboxed VM
     const vm = new VM({
@@ -385,11 +386,18 @@ function executeJavaScript(code: string, input: Record<string, unknown>): NodeEx
     }
 
     const result = vm.run(wrappedCode);
+    
+    // Track memory usage
+    const memoryAfter = process.memoryUsage();
+    const memoryUsedMb = (memoryAfter.heapUsed - memoryBefore.heapUsed) / (1024 * 1024);
 
     return {
       success: true,
       output: {
         output: result !== undefined ? result : input,
+      },
+      metadata: {
+        memoryMb: Math.max(0, memoryUsedMb),
       },
     };
   } catch (error: any) {
@@ -502,6 +510,7 @@ async function executePythonViaSubprocess(
   const tempFile = path.join(tempDir, `${execId}.py`);
   const requirementsFile = packages.length > 0 ? path.join(tempDir, `${execId}-requirements.txt`) : null;
   
+  const memoryBefore = process.memoryUsage();
   try {
     // Install packages if needed (basic implementation - in production, use virtualenv)
     if (packages.length > 0 && requirementsFile) {
@@ -648,10 +657,18 @@ except Exception as e:
       result = stdout.trim() || input;
     }
 
+    // Track memory usage (approximate - tracks Node.js process, not Python subprocess)
+    const memoryAfter = process.memoryUsage();
+    const memoryUsedMb = (memoryAfter.heapUsed - memoryBefore.heapUsed) / (1024 * 1024);
+
     return {
       success: true,
       output: {
         output: result,
+      },
+      metadata: {
+        memoryMb: Math.max(0, memoryUsedMb),
+        exitCode,
       },
     };
   } catch (error: any) {
@@ -709,6 +726,7 @@ async function executeBash(
   const execId = `bash-exec-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   const tempFile = path.join(tempDir, `${execId}.sh`);
 
+  const memoryBefore = process.memoryUsage();
   try {
     // Wrap code to handle input/output
     const wrappedCode = `#!/bin/bash
@@ -797,10 +815,18 @@ echo "$RESULT"
       result = stdout.trim() || input;
     }
 
+    // Track memory usage (approximate - tracks Node.js process, not Bash subprocess)
+    const memoryAfter = process.memoryUsage();
+    const memoryUsedMb = (memoryAfter.heapUsed - memoryBefore.heapUsed) / (1024 * 1024);
+
     return {
       success: true,
       output: {
         output: result,
+      },
+      metadata: {
+        memoryMb: Math.max(0, memoryUsedMb),
+        exitCode,
       },
     };
   } catch (error: any) {
