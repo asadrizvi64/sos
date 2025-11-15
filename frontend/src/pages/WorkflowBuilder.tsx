@@ -27,6 +27,7 @@ import { queryKeys } from '../lib/queryKeys';
 import { useWebSocket, ExecutionEvent } from '../hooks/useWebSocket';
 import { WorkflowGroup } from '@sos/shared';
 import GroupNode from '../components/nodes/GroupNode';
+import { getNodeDefinition } from '../lib/nodes/nodeRegistry';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -333,14 +334,27 @@ function WorkflowBuilderContent() {
 
   const handleAddNode = useCallback(
     (nodeType: string, position: { x: number; y: number }) => {
+      // Get node definition to extract default config
+      const nodeDef = getNodeDefinition(nodeType);
+      const defaultConfig: Record<string, unknown> = {};
+      
+      // Extract default values from node definition config
+      if (nodeDef?.config?.properties) {
+        Object.entries(nodeDef.config.properties).forEach(([key, prop]: [string, any]) => {
+          if (prop.default !== undefined) {
+            defaultConfig[key] = prop.default;
+          }
+        });
+      }
+      
       const newNode: Node = {
         id: createId(),
         type: 'custom',
         position,
         data: {
           type: nodeType,
-          label: nodeType.split('.').pop()?.replace(/([A-Z])/g, ' $1').trim() || nodeType,
-          config: {},
+          label: nodeDef?.name || nodeType.split('.').pop()?.replace(/([A-Z])/g, ' $1').trim() || nodeType,
+          config: defaultConfig,
         },
       };
       setNodes((nds) => [...nds, newNode]);

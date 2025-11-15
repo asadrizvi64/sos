@@ -1,8 +1,22 @@
-import { useState } from 'react';
-import { nodeRegistry, getAllNodes } from '../lib/nodes/nodeRegistry';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { nodeRegistry, getAllNodes, NodeDefinition, registerConnectorNode } from '../lib/nodes/nodeRegistry';
+import api from '../lib/api';
 
 interface NodePaletteProps {
   onAddNode: (nodeType: string, position: { x: number; y: number }) => void;
+}
+
+interface ConnectorManifest {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  actions: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
 }
 
 const categories = [
@@ -20,8 +34,75 @@ export default function NodePalette({ onAddNode }: NodePaletteProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const nodes = getAllNodes();
-  const filteredNodes = nodes.filter((node) => {
+  // Fetch connectors from backend
+  const { data: connectors = [] } = useQuery<ConnectorManifest[]>({
+    queryKey: ['connectors'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/connectors');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch connectors:', error);
+        return [];
+      }
+    },
+  });
+
+  // Generate integration nodes from connectors
+  const integrationNodes = useMemo(() => {
+    const nodes: NodeDefinition[] = [];
+    
+    connectors.forEach((connector) => {
+      // Create a node for each action in the connector
+      connector.actions.forEach((action) => {
+        const nodeType = `integration.${connector.id}`;
+        const nodeDef: NodeDefinition = {
+          type: nodeType,
+          name: `${connector.name}: ${action.name}`,
+          description: action.description || connector.description,
+          category: 'integration',
+          icon: 'plug',
+          inputs: [],
+          outputs: [
+            { name: 'output', type: 'object', description: 'Action output' },
+            { name: 'success', type: 'boolean', description: 'Operation success' },
+          ],
+          config: {
+            type: 'object',
+            properties: {
+              action: {
+                type: 'string',
+                enum: [action.id],
+                default: action.id,
+                description: 'Action to execute',
+              },
+            },
+            required: ['action'],
+          },
+        };
+        nodes.push(nodeDef);
+        // Register in nodeRegistry for getNodeDefinition to work
+        registerConnectorNode(nodeDef);
+      });
+    });
+    
+    return nodes;
+  }, [connectors]);
+
+  // Combine hardcoded nodes with dynamic integration nodes
+  const allNodes = useMemo(() => {
+    const hardcodedNodes = getAllNodes();
+    // Filter out existing integration nodes to avoid duplicates
+    const existingIntegrationTypes = new Set(
+      hardcodedNodes.filter(n => n.category === 'integration').map(n => n.type)
+    );
+    const newIntegrationNodes = integrationNodes.filter(
+      n => !existingIntegrationTypes.has(n.type)
+    );
+    return [...hardcodedNodes, ...newIntegrationNodes];
+  }, [integrationNodes]);
+
+  const filteredNodes = allNodes.filter((node) => {
     const matchesCategory = !selectedCategory || node.category === selectedCategory;
     const matchesSearch =
       !searchQuery ||
@@ -73,21 +154,27 @@ export default function NodePalette({ onAddNode }: NodePaletteProps) {
           </div>
         ) : (
           <div className="space-y-1">
-            {filteredNodes.map((node) => (
-              <button
-                key={node.type}
-                onClick={() => handleNodeClick(node.type)}
-                className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-colors"
-                title={node.description}
-              >
-                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{node.name}</div>
-                {node.description && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
-                    {node.description}
-                  </div>
-                )}
-              </button>
-            ))}
+            {filteredNodes.map((node, index) => {
+              // Use a unique key - combine type with name to handle multiple actions per connector
+              const uniqueKey = node.type.startsWith('integration.') 
+                ? `${node.type}-${node.name}-${index}` 
+                : node.type;
+              return (
+                <button
+                  key={uniqueKey}
+                  onClick={() => handleNodeClick(node.type)}
+                  className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-colors"
+                  title={node.description}
+                >
+                  <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{node.name}</div>
+                  {node.description && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                      {node.description}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -2168,8 +2168,16 @@ export const nodeRegistry: Record<string, NodeDefinition> = {
   },
 };
 
+// Dynamic connector nodes cache (populated by NodePalette)
+let dynamicConnectorNodes: Record<string, NodeDefinition> = {};
+
+export const registerConnectorNode = (nodeDef: NodeDefinition): void => {
+  dynamicConnectorNodes[nodeDef.type] = nodeDef;
+};
+
 export const getNodeDefinition = (type: string): NodeDefinition | undefined => {
-  return nodeRegistry[type];
+  // Check dynamic connector nodes first, then static registry
+  return dynamicConnectorNodes[type] || nodeRegistry[type];
 };
 
 export const getNodesByCategory = (category: string): NodeDefinition[] => {
