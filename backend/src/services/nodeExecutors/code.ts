@@ -4,6 +4,7 @@ import { codeValidationService } from '../codeValidationService';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { runtimeRouter } from '../runtimeRouter';
 import { codeExecutionLogger } from '../codeExecutionLogger';
+import { posthogService } from '../posthogService';
 
 // Security: Dangerous Python packages/modules to block
 const BLOCKED_PACKAGES = [
@@ -313,6 +314,34 @@ export async function executeCode(
       // Log error but don't fail execution
       console.error('Failed to log code execution:', err);
     });
+
+    // Track code execution event in PostHog
+    if (userId) {
+      posthogService.track({
+        distinctId: userId,
+        event: 'code_executed',
+        properties: {
+          language,
+          runtime: actualRuntime,
+          success: result.success,
+          durationMs,
+          memoryMb: memoryMb || undefined,
+          tokensUsed: tokensUsed || undefined,
+          aiGenerated,
+          hasInputSchema: !!nodeConfig.inputSchema,
+          hasOutputSchema: !!nodeConfig.outputSchema,
+          validationPassed: validationPassed !== undefined ? validationPassed : undefined,
+          codeAgentId: codeAgentId || undefined,
+          workflowExecutionId: executionId || undefined,
+          nodeId: nodeId || undefined,
+          organizationId: organizationId || undefined,
+          workspaceId: workspaceId || undefined,
+        },
+      }).catch((err: any) => {
+        // Don't fail execution if PostHog tracking fails
+        console.warn('Failed to track code execution in PostHog:', err);
+      });
+    }
 
     return result;
   } catch (error: any) {

@@ -47,6 +47,7 @@ export class CodeExecutionLogger {
           success: data.success,
           errorMessage: data.errorMessage || null,
           tokensUsed: data.tokensUsed || null,
+          // Note: aiGenerated is tracked via tokensUsed > 0, not stored separately
           validationPassed: data.validationPassed || null,
           organizationId: data.organizationId || null,
           workspaceId: data.workspaceId || null,
