@@ -31,6 +31,7 @@ import ObservabilityDashboard from './pages/ObservabilityDashboard';
 import AgentCatalogue from './pages/AgentCatalogue';
 import ConnectorMarketplace from './pages/ConnectorMarketplace';
 import SandboxStudio from './pages/SandboxStudio';
+import CodeAgentAnalytics from './pages/CodeAgentAnalytics';
 import PolicyConfiguration from './pages/PolicyConfiguration';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -133,6 +134,7 @@ function App() {
               <Route path="agents/catalogue" element={<AgentCatalogue />} />
               <Route path="connectors" element={<ConnectorMarketplace />} />
               <Route path="sandbox" element={<SandboxStudio />} />
+              <Route path="sandbox/analytics" element={<CodeAgentAnalytics />} />
               <Route path="observability" element={<ObservabilityDashboard />} />
               <Route path="settings/policies" element={<PolicyConfiguration />} />
             </Route>

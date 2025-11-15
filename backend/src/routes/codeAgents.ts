@@ -184,6 +184,119 @@ router.post('/:id/export-tool', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+// Get analytics for code agents
+router.get('/analytics', authenticate, setOrganization, async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const agentId = req.query.agentId as string | undefined;
+    const timeRange = (req.query.timeRange as '7d' | '30d' | '90d' | 'all') || '30d';
+    
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    switch (timeRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(0); // All time
+    }
+
+    const { codeExecutionLogger } = await import('../services/codeExecutionLogger');
+    const { db } = await import('../config/database');
+    const { codeExecLogs } = await import('../../drizzle/schema');
+    const { and, gte, eq } = await import('drizzle-orm');
+
+    // Build query filters
+    const filters: any[] = [
+      gte(codeExecLogs.createdAt, startDate),
+    ];
+
+    if (agentId) {
+      filters.push(eq(codeExecLogs.codeAgentId, agentId));
+    }
+
+    if (req.organizationId) {
+      filters.push(eq(codeExecLogs.organizationId, req.organizationId));
+    }
+
+    // Fetch logs
+    const logs = await db
+      .select()
+      .from(codeExecLogs)
+      .where(and(...filters));
+
+    // Calculate statistics
+    const totalExecutions = logs.length;
+    const successful = logs.filter(l => l.success).length;
+    const totalErrors = logs.filter(l => !l.success).length;
+    const successRate = totalExecutions > 0 ? successful / totalExecutions : 0;
+    const totalDuration = logs.reduce((sum, l) => sum + (l.durationMs || 0), 0);
+    const avgDurationMs = totalExecutions > 0 ? totalDuration / totalExecutions : 0;
+    const totalTokensUsed = logs.reduce((sum, l) => sum + (l.tokensUsed || 0), 0);
+    const totalMemory = logs.reduce((sum, l) => sum + (l.memoryMb || 0), 0);
+    const avgMemoryMb = totalExecutions > 0 ? totalMemory / totalExecutions : 0;
+
+    // Group by language
+    const executionsByLanguage: Record<string, number> = {};
+    logs.forEach(log => {
+      executionsByLanguage[log.language] = (executionsByLanguage[log.language] || 0) + 1;
+    });
+
+    // Group by runtime
+    const executionsByRuntime: Record<string, number> = {};
+    logs.forEach(log => {
+      executionsByRuntime[log.runtime] = (executionsByRuntime[log.runtime] || 0) + 1;
+    });
+
+    // Group by date
+    const executionsByDate: Record<string, { count: number; successCount: number; errorCount: number }> = {};
+    logs.forEach(log => {
+      const date = new Date(log.createdAt).toISOString().split('T')[0];
+      if (!executionsByDate[date]) {
+        executionsByDate[date] = { count: 0, successCount: 0, errorCount: 0 };
+      }
+      executionsByDate[date].count++;
+      if (log.success) {
+        executionsByDate[date].successCount++;
+      } else {
+        executionsByDate[date].errorCount++;
+      }
+    });
+
+    const executionsOverTime = Object.entries(executionsByDate)
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({
+      stats: {
+        totalExecutions,
+        successRate,
+        avgDurationMs,
+        totalErrors,
+        totalTokensUsed,
+        avgMemoryMb,
+        executionsByLanguage,
+        executionsByRuntime,
+        executionsOverTime,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error getting code agent analytics:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // Register agent as LangChain tool
 router.post('/:id/register-tool', authenticate, async (req: AuthRequest, res) => {
   try {
