@@ -186,6 +186,15 @@ export async function executeCode(
       // Update actual runtime based on router decision
       if (requestedRuntime === 'auto') {
         actualRuntime = (result as any).runtime || 'vm2';
+        span.setAttributes({
+          'code.runtime_selected': actualRuntime,
+          'code.routing_reason': 'auto',
+        });
+      } else {
+        span.setAttributes({
+          'code.runtime_selected': actualRuntime,
+          'code.routing_reason': 'explicit',
+        });
       }
     } else {
       // Use default execution (VM2/subprocess)
