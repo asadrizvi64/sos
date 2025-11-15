@@ -168,6 +168,7 @@ export class MCPServerService {
     protocol: 'stdio' | 'http' | 'sse'
   ): string {
     const toolName = agent.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const agentCode = agent.code.replace(/`/g, '\\`').replace(/\$/g, '\\$');
     
     if (protocol === 'stdio') {
       return `#!/usr/bin/env node
@@ -186,7 +187,10 @@ const rl = readline.createInterface({
 });
 
 // Agent configuration
-const agent = ${JSON.stringify({ language: agent.language }, null, 2)};
+const agentConfig = ${JSON.stringify({ language: agent.language }, null, 2)};
+
+// Agent code
+const agentCode = ${JSON.stringify(agentCode, null, 2)};
 
 // Execute agent code
 async function executeAgent(input) {
@@ -195,12 +199,12 @@ async function executeAgent(input) {
     const wrappedCode = \`
       (async function() {
         const input = \${JSON.stringify(input)};
-        ${agent.code}
+        \${agentCode}
       })()
     \`;
     
     // Execute using Node.js VM (for JavaScript/TypeScript)
-    if (agent.language === 'javascript' || agent.language === 'typescript') {
+    if (agentConfig.language === 'javascript' || agentConfig.language === 'typescript') {
       const vm = require('vm');
       const context = { input, console, require, process, Buffer, setTimeout, setInterval, clearTimeout, clearInterval };
       const result = await vm.runInNewContext(wrappedCode, context);
@@ -208,7 +212,7 @@ async function executeAgent(input) {
     }
     
     // For other languages, would need appropriate runtime
-    throw new Error(\`Language \${agent.language} not yet supported in MCP server\`);
+    throw new Error(\`Language \${agentConfig.language} not yet supported in MCP server\`);
   } catch (error) {
     return { error: error.message };
   }
