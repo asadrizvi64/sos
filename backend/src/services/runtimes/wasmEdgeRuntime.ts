@@ -276,6 +276,8 @@ export class WasmEdgeRuntime {
 
 export const wasmEdgeRuntime = new WasmEdgeRuntime();
 
-// Initialize availability check
-wasmEdgeRuntime.checkAvailability();
+// Initialize availability check asynchronously
+wasmEdgeRuntime.initialize().catch((error) => {
+  console.warn('Failed to check WasmEdge availability:', error);
+});
 
