@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { TrendingUp, Clock, HardDrive, CheckCircle, XCircle, Code } from 'lucide-react';
 
