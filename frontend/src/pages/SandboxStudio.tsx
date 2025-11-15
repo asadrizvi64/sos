@@ -469,7 +469,7 @@ export default function SandboxStudio() {
                   </p>
                 </div>
 
-                {/* Schema Editor (Placeholder) */}
+                {/* Schema Editor */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Input/Output Schemas (Advanced)
@@ -477,15 +477,48 @@ export default function SandboxStudio() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                     Define Zod (JS/TS) or Pydantic (Python) schemas for validation
                   </p>
-                  <button
-                    onClick={() => {
-                      // TODO: Open schema editor modal
-                      alert('Schema editor coming soon');
-                    }}
-                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Edit Schemas
-                  </button>
+                  
+                  {/* Input Schema */}
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Input Schema (JSON)
+                    </label>
+                    <CodeEditor
+                      language="json"
+                      value={inputSchema ? JSON.stringify(inputSchema, null, 2) : '{\n  "type": "object",\n  "properties": {\n    "input": { "type": "any" }\n  }\n}'}
+                      onChange={(val) => {
+                        try {
+                          const parsed = JSON.parse(val);
+                          setInputSchema(parsed);
+                        } catch {
+                          // Invalid JSON, keep as string for now
+                        }
+                      }}
+                      height="120px"
+                      placeholder='{"type": "object", "properties": {...}}'
+                    />
+                  </div>
+
+                  {/* Output Schema */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Output Schema (JSON)
+                    </label>
+                    <CodeEditor
+                      language="json"
+                      value={outputSchema ? JSON.stringify(outputSchema, null, 2) : '{\n  "type": "object",\n  "properties": {\n    "output": { "type": "any" }\n  }\n}'}
+                      onChange={(val) => {
+                        try {
+                          const parsed = JSON.parse(val);
+                          setOutputSchema(parsed);
+                        } catch {
+                          // Invalid JSON, keep as string for now
+                        }
+                      }}
+                      height="120px"
+                      placeholder='{"type": "object", "properties": {...}}'
+                    />
+                  </div>
                 </div>
               </div>
             </div>
