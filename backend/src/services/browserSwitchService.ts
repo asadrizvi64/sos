@@ -2,6 +2,8 @@ import { BrowserEngine, BrowserPoolConfig } from './browserPoolService';
 import redis from '../config/redis';
 import axios from 'axios';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { undetectedChromeDriverBridge } from './undetectedChromeDriverBridge';
+import { cloudscraperBridge } from './cloudscraperBridge';
 
 /**
  * Browser Switch Service
@@ -67,22 +69,22 @@ export class BrowserSwitchService {
       // Apply routing matrix from PRD
       let decision: BrowserRoutingDecision | null = null;
 
-      // 1. Cloudflare block → Cloudscraper (fallback to Playwright for now)
+      // 1. Cloudflare block → Cloudscraper
       if (taskConfig.cloudflareBlock) {
         decision = this.createDecision(
-          'playwright',
-          'Cloudflare block detected, using Playwright with stealth',
-          0.9,
+          'cloudscraper' as BrowserEngine,
+          'Cloudflare block detected, using Cloudscraper bridge',
+          0.95,
           taskConfig
         );
       }
 
-      // 2. 403/429 detected → Undetected-Chromedriver (fallback to Playwright for now)
+      // 2. 403/429 detected → Undetected-Chromedriver
       if (!decision && taskConfig.has403429) {
         decision = this.createDecision(
-          'playwright',
-          '403/429 detected, using Playwright with anti-bot features',
-          0.85,
+          'undetected-chromedriver' as BrowserEngine,
+          '403/429 detected, using Undetected-Chromedriver bridge',
+          0.9,
           taskConfig
         );
       }

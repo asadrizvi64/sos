@@ -7,6 +7,8 @@ import { proxyService, ProxyConfig } from './proxyService';
 import { db } from '../config/database';
 import { browserRuns } from '../../drizzle/schema';
 import { stealthMiddleware, StealthConfig } from './stealthMiddleware';
+import { cloudscraperBridge } from './cloudscraperBridge';
+import { undetectedChromeDriverBridge } from './undetectedChromeDriverBridge';
 
 /**
  * Browser Automation Service
@@ -105,6 +107,13 @@ export class BrowserAutomationService {
             password: proxyConfig.password,
           };
         }
+      }
+
+      // Handle bridge engines (cloudscraper, undetected-chromedriver)
+      if (routingDecision.engine === 'cloudscraper') {
+        return await this.executeCloudscraperAction(config, routingDecision);
+      } else if (routingDecision.engine === 'undetected-chromedriver') {
+        return await this.executeUndetectedChromeDriverAction(config, routingDecision);
       }
 
       // Get browser from pool

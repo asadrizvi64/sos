@@ -9,7 +9,7 @@ import { trace, SpanStatusCode } from '@opentelemetry/api';
  * Reuses browser instances for performance and resource efficiency.
  */
 
-export type BrowserEngine = 'playwright' | 'puppeteer';
+export type BrowserEngine = 'playwright' | 'puppeteer' | 'cloudscraper' | 'undetected-chromedriver';
 
 export interface BrowserPoolConfig {
   engine: BrowserEngine;
