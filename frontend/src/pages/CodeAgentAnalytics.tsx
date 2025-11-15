@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { FaChartLine, FaClock, FaMemory, FaCheckCircle, FaTimesCircle, FaCode } from 'react-icons/fa';
+import { TrendingUp, Clock, HardDrive, CheckCircle, XCircle, Code } from 'lucide-react';
 
 export default function CodeAgentAnalytics() {
   const { userId } = useAuth();
@@ -121,7 +121,7 @@ export default function CodeAgentAnalytics() {
                       {stats.totalExecutions.toLocaleString()}
                     </p>
                   </div>
-                  <FaCode className="text-3xl text-blue-500" />
+                  <Code className="text-3xl text-blue-500" />
                 </div>
               </div>
 
@@ -133,7 +133,7 @@ export default function CodeAgentAnalytics() {
                       {(stats.successRate * 100).toFixed(1)}%
                     </p>
                   </div>
-                  <FaCheckCircle className="text-3xl text-green-500" />
+                  <CheckCircle className="text-3xl text-green-500" />
                 </div>
               </div>
 
@@ -145,7 +145,7 @@ export default function CodeAgentAnalytics() {
                       {stats.avgDurationMs > 0 ? `${(stats.avgDurationMs / 1000).toFixed(2)}s` : 'N/A'}
                     </p>
                   </div>
-                  <FaClock className="text-3xl text-purple-500" />
+                  <Clock className="text-3xl text-purple-500" />
                 </div>
               </div>
 
@@ -157,7 +157,7 @@ export default function CodeAgentAnalytics() {
                       {stats.totalErrors.toLocaleString()}
                     </p>
                   </div>
-                  <FaTimesCircle className="text-3xl text-red-500" />
+                  <XCircle className="text-3xl text-red-500" />
                 </div>
               </div>
             </div>
@@ -172,7 +172,7 @@ export default function CodeAgentAnalytics() {
                       {stats.totalTokensUsed > 0 ? stats.totalTokensUsed.toLocaleString() : 'N/A'}
                     </p>
                   </div>
-                  <FaChartLine className="text-3xl text-yellow-500" />
+                  <TrendingUp className="text-3xl text-yellow-500" />
                 </div>
               </div>
 
@@ -184,7 +184,7 @@ export default function CodeAgentAnalytics() {
                       {stats.avgMemoryMb > 0 ? `${stats.avgMemoryMb.toFixed(2)} MB` : 'N/A'}
                     </p>
                   </div>
-                  <FaMemory className="text-3xl text-indigo-500" />
+                  <HardDrive className="text-3xl text-indigo-500" />
                 </div>
               </div>
 
@@ -198,7 +198,7 @@ export default function CodeAgentAnalytics() {
                         : 0}%
                     </p>
                   </div>
-                  <FaTimesCircle className="text-3xl text-orange-500" />
+                  <XCircle className="text-3xl text-orange-500" />
                 </div>
               </div>
             </div>
