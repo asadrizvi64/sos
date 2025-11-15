@@ -185,8 +185,8 @@ const rl = readline.createInterface({
   terminal: false,
 });
 
-// Agent code
-const agentCode = ${JSON.stringify(agent.code, null, 2)};
+// Agent configuration
+const agent = ${JSON.stringify({ language: agent.language }, null, 2)};
 
 // Execute agent code
 async function executeAgent(input) {
@@ -202,7 +202,7 @@ async function executeAgent(input) {
     // Execute using Node.js VM (for JavaScript/TypeScript)
     if (agent.language === 'javascript' || agent.language === 'typescript') {
       const vm = require('vm');
-      const context = { input, console, require, process };
+      const context = { input, console, require, process, Buffer, setTimeout, setInterval, clearTimeout, clearInterval };
       const result = await vm.runInNewContext(wrappedCode, context);
       return { output: result };
     }

@@ -439,17 +439,36 @@ router.post('/:id/deploy-mcp', authenticate, async (req: AuthRequest, res) => {
       return;
     }
 
-    // TODO: Implement MCP Server deployment
-    // This would involve:
-    // 1. Generate MCP server configuration
-    // 2. Deploy to MCP Server (if configured)
-    // 3. Return deployment status
+    // Deploy agent to MCP server
+    const deploymentConfig = req.body.config || {};
+    const deploymentResult = await mcpServerService.deployAgent(
+      {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        code: agent.code,
+        language: agent.language,
+        inputSchema: agent.inputSchema,
+        outputSchema: agent.outputSchema,
+        packages: agent.packages,
+        environment: agent.environment,
+      },
+      deploymentConfig
+    );
+
+    if (!deploymentResult.success) {
+      res.status(500).json({
+        success: false,
+        error: deploymentResult.error || 'Failed to deploy to MCP server',
+      });
+      return;
+    }
 
     res.json({
       success: true,
-      message: 'MCP Server deployment is not yet implemented',
-      agentId: agent.id,
-      note: 'This feature requires MCP Server setup and configuration',
+      message: deploymentResult.message,
+      serverPath: deploymentResult.serverPath,
+      toolName: deploymentResult.toolName,
     });
   } catch (error: any) {
     console.error('Error deploying to MCP Server:', error);
