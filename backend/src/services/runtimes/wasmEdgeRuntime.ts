@@ -1,7 +1,6 @@
 import { NodeExecutionResult } from '@sos/shared';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { wasmCompiler } from '../wasmCompiler';
-import { WasmEdgeHttpService } from '../wasmEdgeHttpService';
 
 /**
  * WasmEdge Runtime Service
@@ -9,14 +8,15 @@ import { WasmEdgeHttpService } from '../wasmEdgeHttpService';
  * Provides secure WASM execution using WasmEdge runtime.
  * Ideal for untrusted code execution with strong isolation.
  * 
- * Implementation uses HTTP service approach for flexibility and ease of deployment.
+ * Implementation uses CLI execution approach - compiles code to WASM and executes
+ * via the wasmedge binary. This provides strong isolation without requiring
+ * Docker or additional services.
  */
 
 export interface WasmEdgeConfig {
-  serviceUrl?: string;
+  wasmEdgePath?: string;
   timeout?: number;
   memoryLimit?: number;
-  apiKey?: string;
 }
 
 export class WasmEdgeRuntime {
@@ -32,6 +32,31 @@ export class WasmEdgeRuntime {
     
     // Check if WasmEdge is available (will be checked asynchronously)
     this.isAvailable = process.env.WASMEDGE_ENABLED !== 'false';
+  }
+
+  /**
+   * Initialize and check WasmEdge availability
+   */
+  async initialize(): Promise<void> {
+    if (process.env.WASMEDGE_ENABLED === 'false') {
+      this.isAvailable = false;
+      return;
+    }
+
+    try {
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      
+      // Check if wasmedge binary exists
+      await execAsync(`which ${this.wasmEdgePath} || ${this.wasmEdgePath} --version`);
+      this.isAvailable = true;
+    } catch (error) {
+      this.isAvailable = false;
+      if (process.env.WASMEDGE_ENABLED === 'true') {
+        console.warn('WasmEdge is enabled but not found. Install with: curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash');
+      }
+    }
   }
 
   /**
