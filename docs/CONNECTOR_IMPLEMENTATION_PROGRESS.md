@@ -10,19 +10,26 @@
 We are implementing 600+ connectors to recreate ACI.dev's integration ecosystem. This document tracks our progress.
 
 **Total Target:** 600+ connectors  
-**Completed:** 16 executors  
+**Completed:** 26 executors  
 **In Progress:** Tier 1 (100 connectors)
 
 ---
 
-## Completed Executors (16)
+## Completed Executors (26)
 
-### Communication (3)
+### Communication (11)
 - ✅ **Slack** - Send messages to Slack channels
 - ✅ **Microsoft Teams** - Send messages to Teams channels
 - ✅ **Discord** - Send messages to Discord channels
 - ✅ **Twilio** - Send SMS and make phone calls
 - ✅ **SendGrid** - Send transactional emails
+- ✅ **Gmail** - Send and receive emails
+- ✅ **Outlook** - Send and receive emails
+- ✅ **Mailgun** - Send transactional emails
+- ✅ **Postmark** - Send transactional emails
+- ✅ **Telegram** - Send messages via Bot API
+- ✅ **Zendesk** - Create and manage support tickets
+- ✅ **Zoom** - Create and manage meetings
 
 ### CRM & Sales (4)
 - ✅ **Salesforce** - Query records, create records
@@ -30,13 +37,15 @@ We are implementing 600+ connectors to recreate ACI.dev's integration ecosystem.
 - ✅ **Pipedrive** - Create deals, get deals
 - ✅ **Zoho CRM** - Create leads, get leads
 
-### Productivity (5)
+### Productivity (7)
 - ✅ **Trello** - Create cards, get cards
 - ✅ **Asana** - Create tasks, get tasks
 - ✅ **Monday.com** - Create items, get items
 - ✅ **Jira** - Create issues, get issues
 - ✅ **Airtable** - List records, create records
 - ✅ **Google Sheets** - Read/write ranges
+- ✅ **Google Calendar** - Create events, get events, list calendars
+- ✅ **Google Drive** - Upload files, list files, download files
 
 ### E-commerce (4)
 - ✅ **Shopify** - Get products, create products
@@ -50,6 +59,9 @@ We are implementing 600+ connectors to recreate ACI.dev's integration ecosystem.
 - ✅ **MongoDB** - Find documents, insert documents
 - ✅ **Redis** - Get/set values
 - ✅ **Supabase** - Query tables, insert rows
+
+### Developer Tools (1)
+- ✅ **GitHub** - Create repositories, create issues, get issues, list repositories
 
 ---
 
@@ -219,5 +231,5 @@ For each new connector:
 
 ---
 
-**Status:** ✅ 16 executors completed, continuing with Tier 1 implementation
+**Status:** ✅ 26 executors completed, continuing with Tier 1 implementation
 
