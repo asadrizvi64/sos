@@ -46,15 +46,48 @@ export default function SandboxStudio() {
   const [isPublic, setIsPublic] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [selectedAgentForLogs, setSelectedAgentForLogs] = useState<string | null>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [selectedAgentForVersions, setSelectedAgentForVersions] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterLanguage, setFilterLanguage] = useState<string>('all');
+  const [filterPublic, setFilterPublic] = useState<string>('all');
+  const [filterDeprecated, setFilterDeprecated] = useState<boolean>(false);
 
-  // Fetch code agents
+  // Fetch code agents with filters
   const { data: agents, isLoading } = useQuery<CodeAgent[]>({
-    queryKey: ['code-agents'],
+    queryKey: ['code-agents', filterLanguage, filterPublic, filterDeprecated],
     queryFn: async () => {
-      const response = await api.get('/code-agents');
+      const params = new URLSearchParams();
+      if (filterLanguage !== 'all') params.append('language', filterLanguage);
+      if (filterPublic !== 'all') params.append('isPublic', filterPublic === 'true' ? 'true' : 'false');
+      if (filterDeprecated) params.append('deprecated', 'true');
+      
+      const response = await api.get(`/code-agents?${params.toString()}`);
       return response.data;
     },
   });
+
+  // Fetch version history for selected agent
+  const { data: versionHistory, isLoading: isLoadingVersions } = useQuery({
+    queryKey: ['code-agent-versions', selectedAgentForVersions],
+    queryFn: async () => {
+      if (!selectedAgentForVersions) return null;
+      const response = await api.get(`/code-agents/${selectedAgentForVersions}/versions`);
+      return response.data;
+    },
+    enabled: showVersionHistory && !!selectedAgentForVersions,
+  });
+
+  // Filter agents by search query
+  const filteredAgents = agents?.filter(agent => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      agent.name.toLowerCase().includes(query) ||
+      agent.description?.toLowerCase().includes(query) ||
+      agent.language.toLowerCase().includes(query)
+    );
+  }) || [];
 
   // Fetch execution logs for selected agent
   const { data: executionLogs, isLoading: isLoadingLogs } = useQuery({
@@ -251,14 +284,61 @@ export default function SandboxStudio() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Agent List */}
-        <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <div className="p-4">
+        <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto flex flex-col">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Code Agents</h2>
+            
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Search agents..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 mb-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            />
+
+            {/* Filters */}
+            <div className="space-y-2 mb-3">
+              <select
+                value={filterLanguage}
+                onChange={(e) => setFilterLanguage(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100"
+              >
+                <option value="all">All Languages</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="typescript">TypeScript</option>
+                <option value="bash">Bash</option>
+              </select>
+              
+              <select
+                value={filterPublic}
+                onChange={(e) => setFilterPublic(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100"
+              >
+                <option value="all">All Visibility</option>
+                <option value="true">Public</option>
+                <option value="false">Private</option>
+              </select>
+
+              <label className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={filterDeprecated}
+                  onChange={(e) => setFilterDeprecated(e.target.checked)}
+                  className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                Show Deprecated
+              </label>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
             {isLoading ? (
               <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
-            ) : agents && agents.length > 0 ? (
+            ) : filteredAgents.length > 0 ? (
               <div className="space-y-2">
-                {agents.map((agent) => (
+                {filteredAgents.map((agent) => (
                   <button
                     key={agent.id}
                     onClick={() => {
@@ -280,21 +360,35 @@ export default function SandboxStudio() {
                         Used {agent.usageCount} times
                       </div>
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedAgentForLogs(agent.id);
-                        setShowLogs(true);
-                      }}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
-                    >
-                      View logs
-                    </button>
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAgentForLogs(agent.id);
+                          setShowLogs(true);
+                        }}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        Logs
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAgentForVersions(agent.id);
+                          setShowVersionHistory(true);
+                        }}
+                        className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        Versions
+                      </button>
+                    </div>
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-gray-500 dark:text-gray-400">No code agents yet</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {searchQuery ? 'No agents match your search' : 'No code agents yet'}
+              </div>
             )}
           </div>
         </div>
@@ -451,7 +545,7 @@ export default function SandboxStudio() {
                   </div>
                 </div>
 
-                {/* Public/Private */}
+                {/* Public/Private & Publish/Unpublish */}
                 <div>
                   <label className="flex items-center gap-2">
                     <input
@@ -467,6 +561,46 @@ export default function SandboxStudio() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Public agents can be used by other users in the registry
                   </p>
+                  {selectedAgent && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.put(`/code-agents/${selectedAgent.id}`, {
+                              ...selectedAgent,
+                              isPublic: true,
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['code-agents'] });
+                            setIsPublic(true);
+                          } catch (error) {
+                            console.error('Failed to publish agent:', error);
+                          }
+                        }}
+                        disabled={isPublic}
+                        className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Publish
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.put(`/code-agents/${selectedAgent.id}`, {
+                              ...selectedAgent,
+                              isPublic: false,
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['code-agents'] });
+                            setIsPublic(false);
+                          } catch (error) {
+                            console.error('Failed to unpublish agent:', error);
+                          }
+                        }}
+                        disabled={!isPublic}
+                        className="px-3 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Unpublish
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Schema Editor */}
@@ -525,6 +659,81 @@ export default function SandboxStudio() {
           )}
         </div>
       </div>
+
+      {/* Version History Modal */}
+      {showVersionHistory && selectedAgentForVersions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  Version History
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowVersionHistory(false);
+                    setSelectedAgentForVersions(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingVersions ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading versions...</div>
+              ) : versionHistory && versionHistory.length > 0 ? (
+                <div className="space-y-4">
+                  {versionHistory.map((version: any) => (
+                    <div
+                      key={version.id}
+                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded text-xs font-medium">
+                            v{version.version}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(version.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            // Load this version
+                            api.get(`/code-agents/${selectedAgentForVersions}?version=${version.version}`)
+                              .then((response) => {
+                                setSelectedAgent(response.data);
+                                setShowVersionHistory(false);
+                              });
+                          }}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Load Version
+                        </button>
+                      </div>
+                      {version.changelog && version.changelog.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Changelog:</p>
+                          <ul className="text-xs text-gray-600 dark:text-gray-400 list-disc list-inside">
+                            {version.changelog.map((change: any, idx: number) => (
+                              <li key={idx}>{change.changes || change}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">No version history available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Execution Logs Modal */}
       {showLogs && selectedAgentForLogs && (
