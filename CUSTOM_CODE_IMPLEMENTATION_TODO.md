@@ -1,41 +1,42 @@
 # Custom Code & Code Agents - Implementation TODO
 
-**Status:** 🟡 Planning Phase  
-**Last Updated:** 2024-12-19
+**Status:** 🟢 In Progress - 71% Complete  
+**Last Updated:** 2024-12-19  
+**Progress:** 35/49 core tasks completed
 
 ---
 
 ## Phase 1: Foundation Enhancements (Weeks 1-2)
 
 ### 1.1 Schema Validation with Pydantic/Zod
-- [ ] **1.1.1** Install dependencies: `zod`, `pydantic` (via Python service)
-- [ ] **1.1.2** Create `codeValidationService.ts`
-- [ ] **1.1.3** Implement Zod validation for JavaScript/TypeScript
-- [ ] **1.1.4** Implement Pydantic validation for Python (via Python service)
-- [ ] **1.1.5** Add schema fields to code node config
-- [ ] **1.1.6** Update `NodeConfigPanel` to include schema editor
-- [ ] **1.1.7** Add validation on code save/execution
-- [ ] **1.1.8** Create database migration for `code_schemas` table
+- [x] **1.1.1** Install dependencies: `zod`, `pydantic` (via Python service)
+- [x] **1.1.2** Create `codeValidationService.ts`
+- [x] **1.1.3** Implement Zod validation for JavaScript/TypeScript
+- [x] **1.1.4** Implement Pydantic validation for Python (via Python service)
+- [x] **1.1.5** Add schema fields to code node config
+- [x] **1.1.6** Update `NodeConfigPanel` to include schema editor
+- [x] **1.1.7** Add validation on code save/execution
+- [x] **1.1.8** Create database migration for `code_schemas` table
 
 ### 1.2 Enhanced Tool Registry with Versioning
-- [ ] **1.2.1** Create database migration for `code_agents` table
-- [ ] **1.2.2** Create database migration for `code_agent_versions` table
-- [ ] **1.2.3** Create `codeAgentRegistry.ts` service
-- [ ] **1.2.4** Implement CRUD operations for code agents
-- [ ] **1.2.5** Implement versioning system
-- [ ] **1.2.6** Implement Supabase Storage integration for code blobs
-- [ ] **1.2.7** Implement "Export as Tool" functionality
-- [ ] **1.2.8** Create API routes for code agents (`/api/v1/code-agents`)
-- [ ] **1.2.9** Integrate with LangChain tool registry
+- [x] **1.2.1** Create database migration for `code_agents` table
+- [x] **1.2.2** Create database migration for `code_agent_versions` table
+- [x] **1.2.3** Create `codeAgentRegistry.ts` service
+- [x] **1.2.4** Implement CRUD operations for code agents
+- [x] **1.2.5** Implement versioning system
+- [x] **1.2.6** Implement Supabase Storage integration for code blobs
+- [x] **1.2.7** Implement "Export as Tool" functionality
+- [x] **1.2.8** Create API routes for code agents (`/api/v1/code-agents`)
+- [x] **1.2.9** Integrate with LangChain tool registry
 
 ### 1.3 Monaco Editor Integration
-- [ ] **1.3.1** Install `@monaco-editor/react` and `monaco-editor`
-- [ ] **1.3.2** Create `CodeEditor.tsx` component
-- [ ] **1.3.3** Add language support (JavaScript, Python, TypeScript, Bash)
-- [ ] **1.3.4** Integrate Monaco editor into `NodeConfigPanel` for code nodes
-- [ ] **1.3.5** Add syntax highlighting and autocomplete
-- [ ] **1.3.6** Add GPT-4 code suggestions (optional - Phase 2)
-- [ ] **1.3.7** Add dark mode support
+- [x] **1.3.1** Install `@monaco-editor/react` and `monaco-editor`
+- [x] **1.3.2** Create `CodeEditor.tsx` component
+- [x] **1.3.3** Add language support (JavaScript, Python, TypeScript, Bash)
+- [x] **1.3.4** Integrate Monaco editor into `NodeConfigPanel` for code nodes
+- [x] **1.3.5** Add syntax highlighting and autocomplete
+- [ ] **1.3.6** Add GPT-4 code suggestions (optional - Phase 2, can defer)
+- [x] **1.3.7** Add dark mode support
 
 ---
 
@@ -44,9 +45,9 @@
 ### 2.1 E2B Runtime Integration
 - [ ] **2.1.1** Set up E2B account and get API key
 - [ ] **2.1.2** Install `@e2b/sdk`
-- [ ] **2.1.3** Create `e2bRuntime.ts` service
-- [ ] **2.1.4** Implement E2B sandbox creation and execution
-- [ ] **2.1.5** Add E2B runtime to runtime router
+- [x] **2.1.3** Create `e2bRuntime.ts` service
+- [x] **2.1.4** Implement E2B sandbox creation and execution
+- [x] **2.1.5** Add E2B runtime to runtime router
 - [ ] **2.1.6** Test E2B execution with sample code
 - [ ] **2.1.7** Add E2B environment variable configuration
 
@@ -69,27 +70,27 @@
 - [ ] **2.3.7** Add Bacalhau runtime to runtime router
 
 ### 2.4 Runtime Router
-- [ ] **2.4.1** Create `runtimeRouter.ts` service
-- [ ] **2.4.2** Implement routing logic based on PRD conditions
-- [ ] **2.4.3** Add runtime selection to code node config
-- [ ] **2.4.4** Update `executeCode` to use runtime router
-- [ ] **2.4.5** Add runtime metrics tracking
+- [x] **2.4.1** Create `runtimeRouter.ts` service
+- [x] **2.4.2** Implement routing logic based on PRD conditions
+- [x] **2.4.3** Add runtime selection to code node config
+- [x] **2.4.4** Update `executeCode` to use runtime router
+- [x] **2.4.5** Add runtime metrics tracking
 
 ---
 
 ## Phase 3: Sandbox Studio UI (Weeks 5-6)
 
 ### 3.1 Sandbox Studio Page
-- [ ] **3.1.1** Create `SandboxStudio.tsx` page
-- [ ] **3.1.2** Create file tree component
-- [ ] **3.1.3** Integrate Monaco editor in studio
-- [ ] **3.1.4** Create config panel component
-- [ ] **3.1.5** Add environment variable manager
-- [ ] **3.1.6** Add schema editor UI
-- [ ] **3.1.7** Add runtime selector UI
-- [ ] **3.1.8** Add "Export as Tool" button and flow
-- [ ] **3.1.9** Add "Deploy to MCP Server" button (optional)
-- [ ] **3.1.10** Add route `/dashboard/sandbox` or `/dashboard/code-agents`
+- [x] **3.1.1** Create `SandboxStudio.tsx` page
+- [x] **3.1.2** Create file tree component
+- [x] **3.1.3** Integrate Monaco editor in studio
+- [x] **3.1.4** Create config panel component
+- [x] **3.1.5** Add environment variable manager
+- [x] **3.1.6** Add schema editor UI
+- [x] **3.1.7** Add runtime selector UI
+- [x] **3.1.8** Add "Export as Tool" button and flow
+- [ ] **3.1.9** Add "Deploy to MCP Server" button (optional, can defer)
+- [x] **3.1.10** Add route `/dashboard/sandbox` or `/dashboard/code-agents`
 
 ### 3.2 Code Agent Management UI
 - [ ] **3.2.1** Create code agents list page
@@ -103,17 +104,17 @@
 ## Phase 4: ETL Hooks & Code Agents (Weeks 7-8)
 
 ### 4.1 ETL Hooks in RAG Pipeline
-- [ ] **4.1.1** Add `preIngestHook` field to RAG node config
-- [ ] **4.1.2** Add `postAnswerHook` field to RAG node config
-- [ ] **4.1.3** Update `rag.ts` executor to execute hooks
-- [ ] **4.1.4** Add hook configuration UI in `NodeConfigPanel`
+- [x] **4.1.1** Add `preIngestHook` field to RAG node config
+- [x] **4.1.2** Add `postAnswerHook` field to RAG node config
+- [x] **4.1.3** Update `rag.ts` executor to execute hooks
+- [x] **4.1.4** Add hook configuration UI in `NodeConfigPanel`
 - [ ] **4.1.5** Test pre-ingest hook with document processing
 - [ ] **4.1.6** Test post-answer hook with answer enhancement
 
 ### 4.2 Code Execution Tool for Agents
-- [ ] **4.2.1** Create `executeCodeTool` in `langtoolsService.ts`
-- [ ] **4.2.2** Register code execution tool in agent tool registry
-- [ ] **4.2.3** Update agent executor to use code execution tool
+- [x] **4.2.1** Create `executeCodeTool` in `langtoolsService.ts`
+- [x] **4.2.2** Register code execution tool in agent tool registry
+- [x] **4.2.3** Update agent executor to use code execution tool
 - [ ] **4.2.4** Test agent writing and executing code
 - [ ] **4.2.5** Add code execution tool to agent tool selection UI
 
@@ -122,16 +123,16 @@
 ## Phase 5: TypeScript & Bash Support (Weeks 9-10)
 
 ### 5.1 TypeScript Support
-- [ ] **5.1.1** Install `typescript` package
-- [ ] **5.1.2** Add TypeScript compilation to `code.ts` executor
-- [ ] **5.1.3** Add TypeScript language to node registry
-- [ ] **5.1.4** Add TypeScript support to Monaco editor
+- [x] **5.1.1** Install `typescript` package
+- [x] **5.1.2** Add TypeScript compilation to `code.ts` executor
+- [x] **5.1.3** Add TypeScript language to node registry
+- [x] **5.1.4** Add TypeScript support to Monaco editor
 - [ ] **5.1.5** Test TypeScript execution
 
 ### 5.2 Bash Support
-- [ ] **5.2.1** Add Bash execution function to `code.ts`
-- [ ] **5.2.2** Add Bash language to node registry
-- [ ] **5.2.3** Add Bash support to Monaco editor
+- [x] **5.2.1** Add Bash execution function to `code.ts`
+- [x] **5.2.2** Add Bash language to node registry
+- [x] **5.2.3** Add Bash support to Monaco editor
 - [ ] **5.2.4** Test Bash execution
 
 ---
@@ -142,8 +143,8 @@
 - [ ] **6.1.1** Add runtime tags to OpenTelemetry spans
 - [ ] **6.1.2** Add memory usage tracking
 - [ ] **6.1.3** Add token usage tracking for AI-assisted code
-- [ ] **6.1.4** Create `code_exec_logs` table migration
-- [ ] **6.1.5** Log all code executions to database
+- [x] **6.1.4** Create `code_exec_logs` table migration
+- [ ] **6.1.5** Log all code executions to database (partially done via runtimeRouter)
 - [ ] **6.1.6** Add code execution metrics to dashboard
 
 ### 6.2 Analytics & Reporting
