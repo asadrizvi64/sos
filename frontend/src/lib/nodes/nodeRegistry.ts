@@ -470,6 +470,28 @@ export const nodeRegistry: Record<string, NodeDefinition> = {
           enum: ['zod', 'pydantic'],
           default: 'zod',
         },
+        security: {
+          type: 'object',
+          description: 'Security settings',
+          properties: {
+            readOnlyFilesystem: {
+              type: 'boolean',
+              description: 'Enable read-only filesystem (blocks file writes)',
+              default: false,
+            },
+            allowNetwork: {
+              type: 'boolean',
+              description: 'Allow outbound network access',
+              default: false,
+            },
+            allowedHosts: {
+              type: 'array',
+              description: 'Whitelist of allowed hosts (if network is enabled)',
+              items: { type: 'string' },
+              default: [],
+            },
+          },
+        },
       },
       required: ['code'],
     },

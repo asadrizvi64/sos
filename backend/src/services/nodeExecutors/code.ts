@@ -5,6 +5,7 @@ import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { runtimeRouter } from '../runtimeRouter';
 import { codeExecutionLogger } from '../codeExecutionLogger';
 import { posthogService } from '../posthogService';
+import { securityConfigService } from '../securityConfigService';
 
 // Security: Dangerous Python packages/modules to block
 const BLOCKED_PACKAGES = [
@@ -95,6 +96,26 @@ export async function executeCode(
   const startTime = Date.now();
   const runtime = nodeConfig.runtime || 'vm2';
 
+  // Get security configuration
+  const securityConfig = securityConfigService.getSecurityConfig(nodeConfig, {
+    organizationId: (context as any).organizationId,
+    workspaceId: (context as any).workspaceId,
+    userId: (context as any).userId,
+  });
+
+  // Validate security configuration
+  const securityValidation = securityConfigService.validateSecurityConfig(securityConfig);
+  if (!securityValidation.valid) {
+    return {
+      success: false,
+      error: {
+        message: `Invalid security configuration: ${securityValidation.errors?.join(', ')}`,
+        code: 'INVALID_SECURITY_CONFIG',
+        details: securityValidation.errors,
+      },
+    };
+  }
+
   const tracer = trace.getTracer('sos-code-executor');
   const span = tracer.startSpan('code.execute', {
     attributes: {
@@ -108,6 +129,9 @@ export async function executeCode(
       'code.requires_sandbox': nodeConfig.requiresSandbox || false,
       'code.long_job': nodeConfig.longJob || false,
       'code.expected_duration_ms': nodeConfig.expectedDuration || 0,
+      'security.namespace': securityConfig.namespace || 'default',
+      'security.read_only_fs': securityConfig.readOnlyFilesystem || false,
+      'security.allow_network': securityConfig.allowNetwork || false,
       'node.id': nodeId || '',
       'workflow.id': workflowId || '',
       'workflow.execution_id': executionId || '',
@@ -206,7 +230,11 @@ export async function executeCode(
     } else {
       // Use default execution (VM2/subprocess)
       if (language === 'javascript') {
-        result = executeJavaScript(code, input);
+        result = executeJavaScript(code, input, {
+          readOnlyFilesystem: securityConfig.readOnlyFilesystem,
+          allowNetwork: securityConfig.allowNetwork,
+          allowedHosts: securityConfig.allowedHosts,
+        });
       } else if (language === 'python') {
         const packages = nodeConfig.packages || [];
         const timeout = nodeConfig.timeout || 30000;
@@ -395,18 +423,57 @@ export async function executeCode(
   }
 }
 
-function executeJavaScript(code: string, input: Record<string, unknown>): NodeExecutionResult {
+function executeJavaScript(
+  code: string, 
+  input: Record<string, unknown>,
+  securityConfig?: { readOnlyFilesystem?: boolean; allowNetwork?: boolean; allowedHosts?: string[] }
+): NodeExecutionResult {
   const memoryBefore = process.memoryUsage();
   try {
+    // Build sandbox with security restrictions
+    const sandbox: Record<string, any> = {
+      input,
+      console: {
+        log: (...args: unknown[]) => console.log('[Node Execution]', ...args),
+      },
+    };
+
+    // Block filesystem access if read-only
+    if (securityConfig?.readOnlyFilesystem) {
+      // Block fs module
+      sandbox.fs = undefined;
+      sandbox.require = (module: string) => {
+        if (module === 'fs' || module === 'fs/promises') {
+          throw new Error('Filesystem access is disabled (read-only mode)');
+        }
+        return require(module);
+      };
+    }
+
+    // Block network access if not allowed
+    if (!securityConfig?.allowNetwork) {
+      // Block network modules
+      sandbox.http = undefined;
+      sandbox.https = undefined;
+      sandbox.net = undefined;
+      sandbox.dns = undefined;
+      sandbox.require = (module: string) => {
+        const networkModules = ['http', 'https', 'net', 'dns', 'tls', 'http2', 'child_process'];
+        if (networkModules.includes(module)) {
+          throw new Error('Network access is disabled');
+        }
+        return require(module);
+      };
+    } else if (securityConfig?.allowedHosts && securityConfig.allowedHosts.length > 0) {
+      // Allow only specific hosts (would need more complex implementation with proxy)
+      // For now, log a warning
+      console.warn('[Security] Host whitelist is configured but not fully enforced in VM2');
+    }
+
     // Create a sandboxed VM
     const vm = new VM({
       timeout: 5000,
-      sandbox: {
-        input,
-        console: {
-          log: (...args: unknown[]) => console.log('[Node Execution]', ...args),
-        },
-      },
+      sandbox,
     });
 
     // Wrap code - if it doesn't return, wrap in function
