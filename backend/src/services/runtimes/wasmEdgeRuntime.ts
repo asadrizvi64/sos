@@ -1,5 +1,7 @@
 import { NodeExecutionResult } from '@sos/shared';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { wasmCompiler } from '../wasmCompiler';
+import { WasmEdgeHttpService } from '../wasmEdgeHttpService';
 
 /**
  * WasmEdge Runtime Service
@@ -7,22 +9,21 @@ import { trace, SpanStatusCode } from '@opentelemetry/api';
  * Provides secure WASM execution using WasmEdge runtime.
  * Ideal for untrusted code execution with strong isolation.
  * 
- * Note: This is a placeholder implementation. Full implementation requires:
- * 1. WasmEdge service/container setup
- * 2. WASM compilation pipeline
- * 3. WasmEdge SDK integration
+ * Implementation uses HTTP service approach for flexibility and ease of deployment.
  */
 
 export interface WasmEdgeConfig {
   serviceUrl?: string;
   timeout?: number;
   memoryLimit?: number;
+  apiKey?: string;
 }
 
 export class WasmEdgeRuntime {
   private serviceUrl: string;
   private timeout: number;
   private memoryLimit: number;
+  private httpService: WasmEdgeHttpService | null = null;
   private isAvailable: boolean = false;
 
   constructor(config?: WasmEdgeConfig) {
@@ -30,8 +31,18 @@ export class WasmEdgeRuntime {
     this.timeout = config?.timeout || 30000;
     this.memoryLimit = config?.memoryLimit || 128 * 1024 * 1024; // 128MB default
     
-    // Check if WasmEdge is available
-    this.isAvailable = !!this.serviceUrl || process.env.WASMEDGE_ENABLED === 'true';
+    // Initialize HTTP service if URL is provided
+    if (this.serviceUrl) {
+      this.httpService = new WasmEdgeHttpService({
+        serviceUrl: this.serviceUrl,
+        timeout: this.timeout,
+        apiKey: config?.apiKey || process.env.WASMEDGE_API_KEY,
+      });
+      this.isAvailable = true;
+    } else if (process.env.WASMEDGE_ENABLED === 'true') {
+      // If enabled but no URL, assume embedded SDK will be used later
+      this.isAvailable = true;
+    }
     
     if (!this.isAvailable) {
       console.warn('WasmEdge runtime is not available. Set WASMEDGE_SERVICE_URL or WASMEDGE_ENABLED=true.');
@@ -46,49 +57,13 @@ export class WasmEdgeRuntime {
   }
 
   /**
-   * Compile code to WASM
-   * 
-   * This is a placeholder. Full implementation would:
-   * 1. For TypeScript/JavaScript: Use AssemblyScript or similar
-   * 2. For Python: Use Pyodide or similar
-   * 3. For Rust: Use wasm-pack
-   * 4. For Go: Use TinyGo
+   * Health check
    */
-  async compileToWasm(
-    code: string,
-    language: 'javascript' | 'typescript' | 'python' | 'rust' | 'go'
-  ): Promise<Buffer> {
-    const tracer = trace.getTracer('sos-wasmedge-runtime');
-    const span = tracer.startSpan('wasmedge.compile', {
-      attributes: {
-        'wasmedge.language': language,
-        'wasmedge.code_length': code.length,
-      },
-    });
-
-    try {
-      // TODO: Implement actual WASM compilation
-      // This would involve:
-      // 1. Language-specific compilation (AssemblyScript, Pyodide, etc.)
-      // 2. WASM binary generation
-      // 3. Optimization
-      
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: 'WASM compilation not yet implemented',
-      });
-
-      throw new Error('WASM compilation is not yet implemented. This requires language-specific compilers.');
-    } catch (error: any) {
-      span.recordException(error);
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error.message,
-      });
-      throw error;
-    } finally {
-      span.end();
+  async healthCheck(): Promise<boolean> {
+    if (!this.httpService) {
+      return false;
     }
+    return await this.httpService.healthCheck();
   }
 
   /**
@@ -126,33 +101,100 @@ export class WasmEdgeRuntime {
         };
       }
 
-      // TODO: Implement actual WasmEdge execution
-      // This would involve:
-      // 1. Compile code to WASM (if not already compiled)
-      // 2. Send WASM binary to WasmEdge service
-      // 3. Execute with input data
-      // 4. Retrieve output
-      
-      // For now, return a placeholder response
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: 'WasmEdge execution not yet implemented',
+      if (!this.httpService) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: 'WasmEdge HTTP service not configured',
+        });
+        return {
+          success: false,
+          error: {
+            message: 'WasmEdge HTTP service URL is required. Set WASMEDGE_SERVICE_URL environment variable.',
+            code: 'WASMEDGE_SERVICE_NOT_CONFIGURED',
+          },
+        };
+      }
+
+      // Compile code to WASM
+      let wasmBase64: string;
+      try {
+        const compilationResult = await wasmCompiler.compile(code, language);
+        wasmBase64 = compilationResult.wasmBase64;
+        
+        span.setAttributes({
+          'wasmedge.compilation_time_ms': compilationResult.compilationTime,
+          'wasmedge.wasm_size': compilationResult.size,
+        });
+      } catch (compilationError: any) {
+        span.recordException(compilationError);
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: `WASM compilation failed: ${compilationError.message}`,
+        });
+
+        return {
+          success: false,
+          error: {
+            message: `Failed to compile ${language} to WASM: ${compilationError.message}`,
+            code: 'WASM_COMPILATION_ERROR',
+            details: {
+              language,
+              compilationError: compilationError.message,
+            },
+          },
+        };
+      }
+
+      // Execute WASM via HTTP service
+      const executeTimeout = Math.min(timeout, this.timeout);
+      const httpResult = await this.httpService.execute({
+        wasm: wasmBase64,
+        input,
+        functionName: 'main', // Default function name
+        memoryLimit: this.memoryLimit,
+        timeout: executeTimeout,
       });
 
-      return {
-        success: false,
-        error: {
-          message: 'WasmEdge execution is not yet implemented. This requires WasmEdge service setup and WASM compilation pipeline.',
-          code: 'WASMEDGE_NOT_IMPLEMENTED',
-          details: {
-            note: 'To implement this, you need to:',
-            steps: [
-              '1. Set up WasmEdge service/container',
-              '2. Implement WASM compilation pipeline for supported languages',
-              '3. Integrate WasmEdge SDK or HTTP API',
-              '4. Handle input/output serialization',
-            ],
+      const totalTime = Date.now() - startTime;
+
+      if (!httpResult.success) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: httpResult.error || 'WasmEdge execution failed',
+        });
+
+        return {
+          success: false,
+          error: {
+            message: httpResult.error || 'WasmEdge execution failed',
+            code: 'WASMEDGE_EXECUTION_ERROR',
+            details: {
+              executionTime: httpResult.executionTime,
+              memoryUsed: httpResult.memoryUsed,
+            },
           },
+          metadata: {
+            executionTime: totalTime,
+            memoryUsed: httpResult.memoryUsed,
+          },
+        };
+      }
+
+      span.setAttributes({
+        'wasmedge.success': true,
+        'wasmedge.execution_time_ms': httpResult.executionTime || totalTime,
+        'wasmedge.memory_used': httpResult.memoryUsed || 0,
+      });
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return {
+        success: true,
+        output: {
+          output: httpResult.output !== undefined ? httpResult.output : input,
+        },
+        metadata: {
+          executionTime: httpResult.executionTime || totalTime,
+          memoryUsed: httpResult.memoryUsed,
         },
       };
     } catch (error: any) {

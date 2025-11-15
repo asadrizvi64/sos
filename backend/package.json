@@ -48,6 +48,7 @@
     "@rudderstack/rudder-sdk-node": "^2.1.10",
     "@sos/shared": "*",
     "@supabase/supabase-js": "^2.81.1",
+    "assemblyscript": "^0.27.0",
     "@types/imap": "^0.8.42",
     "@types/nodemailer": "^7.0.3",
     "@types/pg": "^8.15.6",
