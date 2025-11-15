@@ -415,17 +415,15 @@ Query `browser_runs` table for:
 - [ ] Stagehand integration
 - [ ] Fleet-scale browser orchestration
 
-### Phase 6: Additional Integrations
-- [ ] browser-use.com integration (lightweight library)
-- [ ] Undetected-Chromedriver bridge (Python subprocess)
-- [ ] Cloudscraper bridge (Python subprocess)
-
 ### ✅ Phase 5: RAG Helper Clicker & Change Detection (COMPLETE)
 - ✅ RAG Helper Clicker service (LangGraph sub-flow)
 - ✅ Change Detection integration with browser automation
 - ✅ Intelligent routing between scraper and browser
 
 ### Phase 6: Additional Integrations
+- [ ] browser-use.com integration (lightweight library)
+- [ ] Undetected-Chromedriver bridge (Python subprocess)
+- [ ] Cloudscraper bridge (Python subprocess)
 
 ---
 
