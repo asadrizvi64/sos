@@ -177,6 +177,24 @@ The Browser Use PRD has been successfully implemented through Phases 1-3, provid
 }
 ```
 
+### 4. `ai.rag_helper_clicker`
+**Purpose:** RAG Helper Clicker workflow (Open page → Extract → Split → Store)
+
+**Use Case:** Automated content ingestion for RAG pipelines
+
+**Example:**
+```json
+{
+  "type": "ai.rag_helper_clicker",
+  "config": {
+    "url": "https://example.com/article",
+    "vectorStoreId": "my_vector_store",
+    "chunkSize": 1000,
+    "useBrowserAutomation": true
+  }
+}
+```
+
 ---
 
 ## Supported Actions
@@ -281,6 +299,11 @@ CREATE TABLE browser_runs (
 - **Default:** Disabled
 - **Scope:** User/Workspace
 
+### `enable_rag_helper_clicker`
+- **Purpose:** Enable/disable RAG Helper Clicker node
+- **Default:** Disabled
+- **Scope:** User/Workspace
+
 **Enable via SQL:**
 ```sql
 INSERT INTO feature_flags (flag_name, is_enabled, workspace_id)
@@ -355,11 +378,13 @@ Query `browser_runs` table for:
 - `backend/src/services/browserAutomationService.ts`
 - `backend/src/services/stealthMiddleware.ts`
 - `backend/src/services/aiBrowserAgentService.ts`
+- `backend/src/services/ragHelperClickerService.ts`
 
 ### Node Executors
 - `backend/src/services/nodeExecutors/browserAutomation.ts`
 - `backend/src/services/nodeExecutors/browserSwitch.ts`
 - `backend/src/services/nodeExecutors/aiBrowserAgent.ts`
+- `backend/src/services/nodeExecutors/ragHelperClicker.ts`
 
 ### Testing
 - `backend/scripts/test-browser-automation.ts`
@@ -370,6 +395,7 @@ Query `browser_runs` table for:
 - `BROWSER_AUTOMATION_PHASE2_IMPLEMENTATION.md`
 - `BROWSER_AUTOMATION_PHASE3_IMPLEMENTATION.md`
 - `BROWSER_AUTOMATION_PHASE4_IMPLEMENTATION.md`
+- `BROWSER_AUTOMATION_PHASE5_IMPLEMENTATION.md`
 - `BROWSER_AUTOMATION_COMPLETE_SUMMARY.md` (this file)
 
 ---
@@ -394,10 +420,12 @@ Query `browser_runs` table for:
 - [ ] Undetected-Chromedriver bridge (Python subprocess)
 - [ ] Cloudscraper bridge (Python subprocess)
 
-### Phase 7: RAG & Change Detection
-- [ ] RAG Helper Clicker (LangGraph sub-flow)
-- [ ] Change Detection integration
-- [ ] Automated monitoring workflows
+### ✅ Phase 5: RAG Helper Clicker & Change Detection (COMPLETE)
+- ✅ RAG Helper Clicker service (LangGraph sub-flow)
+- ✅ Change Detection integration with browser automation
+- ✅ Intelligent routing between scraper and browser
+
+### Phase 6: Additional Integrations
 
 ---
 
