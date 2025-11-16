@@ -18,6 +18,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import NodePalette from '../components/NodePalette';
 import NodeConfigPanel from '../components/NodeConfigPanel';
+import { useModals } from '../lib/modals';
 import ExecutionMonitor from '../components/ExecutionMonitor';
 import WorkflowVersions from '../components/WorkflowVersions';
 import CustomNode from '../components/nodes/CustomNode';
@@ -38,6 +39,7 @@ function WorkflowBuilderContent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { alert } = useModals();
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [executionId, setExecutionId] = useState<string | null>(null);
@@ -85,7 +87,7 @@ function WorkflowBuilderContent() {
     const error = params.get('error');
 
     if (error) {
-      alert(`OAuth error: ${error}`);
+      alert(`OAuth error: ${error}`, 'OAuth Error', 'error');
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname);
       return;

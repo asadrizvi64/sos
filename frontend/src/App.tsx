@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ModalProvider } from './lib/modals';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import PublicLayout from './components/PublicLayout';
@@ -64,7 +65,8 @@ function App() {
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
         <ThemeProvider>
           <AuthProvider>
-            <BrowserRouter>
+            <ModalProvider>
+              <BrowserRouter>
           <Routes>
             <Route
               path="/"
@@ -140,6 +142,7 @@ function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+            </ModalProvider>
       </AuthProvider>
       </ThemeProvider>
     </ClerkProvider>

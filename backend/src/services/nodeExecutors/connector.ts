@@ -386,6 +386,351 @@ async function executeConnectorAction(
         return executeGitHub(actionId, input, credentials as any);
       }
 
+      case 'gitlab': {
+        const { executeGitLab } = await import('./connectors/gitlab');
+        return executeGitLab(actionId, input, credentials as any);
+      }
+
+      case 'bitbucket': {
+        const { executeBitbucket } = await import('./connectors/bitbucket');
+        return executeBitbucket(actionId, input, credentials as any);
+      }
+
+      case 'vercel': {
+        const { executeVercel } = await import('./connectors/vercel');
+        return executeVercel(actionId, input, credentials as any);
+      }
+
+      case 'netlify': {
+        const { executeNetlify } = await import('./connectors/netlify');
+        return executeNetlify(actionId, input, credentials as any);
+      }
+
+      case 'amazon_ses': {
+        const { executeAmazonSES } = await import('./connectors/amazonSES');
+        return executeAmazonSES(actionId, input, credentials as any);
+      }
+
+      case 'resend': {
+        const { executeResend } = await import('./connectors/resend');
+        return executeResend(actionId, input, credentials as any);
+      }
+
+      case 'intercom': {
+        const { executeIntercom } = await import('./connectors/intercom');
+        return executeIntercom(actionId, input, credentials as any);
+      }
+
+      case 'freshdesk': {
+        const { executeFreshdesk } = await import('./connectors/freshdesk');
+        return executeFreshdesk(actionId, input, credentials as any);
+      }
+
+      case 'dropbox': {
+        const { executeDropbox } = await import('./connectors/dropbox');
+        return executeDropbox(actionId, input, credentials as any);
+      }
+
+      case 'notion': {
+        const { executeNotion } = await import('./connectors/notion');
+        return executeNotion(actionId, input, credentials as any);
+      }
+
+      case 'clickup': {
+        const { executeClickUp } = await import('./connectors/clickUp');
+        return executeClickUp(actionId, input, credentials as any);
+      }
+
+      case 'mailchimp': {
+        const { executeMailchimp } = await import('./connectors/mailchimp');
+        return executeMailchimp(actionId, input, credentials as any);
+      }
+
+      case 'activecampaign': {
+        const { executeActiveCampaign } = await import('./connectors/activeCampaign');
+        return executeActiveCampaign(actionId, input, credentials as any);
+      }
+
+      case 'onedrive': {
+        const { executeOneDrive } = await import('./connectors/oneDrive');
+        return executeOneDrive(actionId, input, credentials as any);
+      }
+
+      case 'box': {
+        const { executeBox } = await import('./connectors/box');
+        return executeBox(actionId, input, credentials as any);
+      }
+
+      case 'linear': {
+        const { executeLinear } = await import('./connectors/linear');
+        return executeLinear(actionId, input, credentials as any);
+      }
+
+      case 'basecamp': {
+        const { executeBasecamp } = await import('./connectors/basecamp');
+        return executeBasecamp(actionId, input, credentials as any);
+      }
+
+      case 'wrike': {
+        const { executeWrike } = await import('./connectors/wrike');
+        return executeWrike(actionId, input, credentials as any);
+      }
+
+      case 'bigcommerce': {
+        const { executeBigCommerce } = await import('./connectors/bigCommerce');
+        return executeBigCommerce(actionId, input, credentials as any);
+      }
+
+      case 'square': {
+        const { executeSquare } = await import('./connectors/square');
+        return executeSquare(actionId, input, credentials as any);
+      }
+
+      case 'braintree': {
+        const { executeBraintree } = await import('./connectors/braintree');
+        return executeBraintree(actionId, input, credentials as any);
+      }
+
+      case 'convertkit': {
+        const { executeConvertKit } = await import('./connectors/convertKit');
+        return executeConvertKit(actionId, input, credentials as any);
+      }
+
+      case 'klaviyo': {
+        const { executeKlaviyo } = await import('./connectors/klaviyo');
+        return executeKlaviyo(actionId, input, credentials as any);
+      }
+
+      case 'helpscout': {
+        const { executeHelpScout } = await import('./connectors/helpScout');
+        return executeHelpScout(actionId, input, credentials as any);
+      }
+
+      case 'crisp': {
+        const { executeCrisp } = await import('./connectors/crisp');
+        return executeCrisp(actionId, input, credentials as any);
+      }
+
+      case 'calendly': {
+        const { executeCalendly } = await import('./connectors/calendly');
+        return executeCalendly(actionId, input, credentials as any);
+      }
+
+      case 'calcom': {
+        const { executeCalCom } = await import('./connectors/calCom');
+        return executeCalCom(actionId, input, credentials as any);
+      }
+
+      case 'circleci': {
+        const { executeCircleCI } = await import('./connectors/circleCI');
+        return executeCircleCI(actionId, input, credentials as any);
+      }
+
+      case 'heroku': {
+        const { executeHeroku } = await import('./connectors/heroku');
+        return executeHeroku(actionId, input, credentials as any);
+      }
+
+      case 'razorpay': {
+        const { executeRazorpay } = await import('./connectors/razorpay');
+        return executeRazorpay(actionId, input, credentials as any);
+      }
+
+      case 'shipstation': {
+        const { executeShipStation } = await import('./connectors/shipstation');
+        return executeShipStation(actionId, input, credentials as any);
+      }
+
+      case 'shippo': {
+        const { executeShippo } = await import('./connectors/shippo');
+        return executeShippo(actionId, input, credentials as any);
+      }
+
+      case 'easypost': {
+        const { executeEasyPost } = await import('./connectors/easyPost');
+        return executeEasyPost(actionId, input, credentials as any);
+      }
+
+      case 'snowflake': {
+        const { executeSnowflake } = await import('./connectors/snowflake');
+        return executeSnowflake(actionId, input, credentials as any);
+      }
+
+      case 'bigquery': {
+        const { executeBigQuery } = await import('./connectors/bigQuery');
+        return executeBigQuery(actionId, input, credentials as any);
+      }
+
+      case 'clearbit': {
+        const { executeClearbit } = await import('./connectors/clearbit');
+        return executeClearbit(actionId, input, credentials as any);
+      }
+
+      case 'apollo': {
+        const { executeApollo } = await import('./connectors/apollo');
+        return executeApollo(actionId, input, credentials as any);
+      }
+
+      case 'constantcontact': {
+        const { executeConstantContact } = await import('./connectors/constantContact');
+        return executeConstantContact(actionId, input, credentials as any);
+      }
+
+      case 'campaignmonitor': {
+        const { executeCampaignMonitor } = await import('./connectors/campaignMonitor');
+        return executeCampaignMonitor(actionId, input, credentials as any);
+      }
+
+      case 'acuityscheduling': {
+        const { executeAcuityScheduling } = await import('./connectors/acuityScheduling');
+        return executeAcuityScheduling(actionId, input, credentials as any);
+      }
+
+      case 'googlemeet': {
+        const { executeGoogleMeet } = await import('./connectors/googleMeet');
+        return executeGoogleMeet(actionId, input, credentials as any);
+      }
+
+      case 'drift': {
+        const { executeDrift } = await import('./connectors/drift');
+        return executeDrift(actionId, input, credentials as any);
+      }
+
+      case 'zoominfo': {
+        const { executeZoomInfo } = await import('./connectors/zoomInfo');
+        return executeZoomInfo(actionId, input, credentials as any);
+      }
+
+      case 'adyen': {
+        const { executeAdyen } = await import('./connectors/adyen');
+        return executeAdyen(actionId, input, credentials as any);
+      }
+
+      case 'close': {
+        const { executeClose } = await import('./connectors/close');
+        return executeClose(actionId, input, credentials as any);
+      }
+
+      case 'streak': {
+        const { executeStreak } = await import('./connectors/streak');
+        return executeStreak(actionId, input, credentials as any);
+      }
+
+      case 'outreach': {
+        const { executeOutreach } = await import('./connectors/outreach');
+        return executeOutreach(actionId, input, credentials as any);
+      }
+
+      case 'salesloft': {
+        const { executeSalesLoft } = await import('./connectors/salesLoft');
+        return executeSalesLoft(actionId, input, credentials as any);
+      }
+
+      case 'gong': {
+        const { executeGong } = await import('./connectors/gong');
+        return executeGong(actionId, input, credentials as any);
+      }
+
+      case 'aws_s3': {
+        const { executeAWSS3 } = await import('./connectors/awsS3');
+        return executeAWSS3(actionId, input, credentials as any);
+      }
+
+      case 'magento': {
+        const { executeMagento } = await import('./connectors/magento');
+        return executeMagento(actionId, input, credentials as any);
+      }
+
+      case 'microsoft_dynamics_365': {
+        const { executeMicrosoftDynamics365 } = await import('./connectors/microsoftDynamics365');
+        return executeMicrosoftDynamics365(actionId, input, credentials as any);
+      }
+
+      case 'sugarcrm': {
+        const { executeSugarCRM } = await import('./connectors/sugarCRM');
+        return executeSugarCRM(actionId, input, credentials as any);
+      }
+
+      case 'microsoft_sql_server': {
+        const { executeMicrosoftSQLServer } = await import('./connectors/microsoftSQLServer');
+        return executeMicrosoftSQLServer(actionId, input, credentials as any);
+      }
+
+      case 'amazon_rds': {
+        const { executeAmazonRDS } = await import('./connectors/amazonRDS');
+        return executeAmazonRDS(actionId, input, credentials as any);
+      }
+
+      case 'dynamodb': {
+        const { executeDynamoDB } = await import('./connectors/dynamoDB');
+        return executeDynamoDB(actionId, input, credentials as any);
+      }
+
+      case 'whatsapp': {
+        const { executeWhatsApp } = await import('./connectors/whatsapp');
+        return executeWhatsApp(actionId, input, credentials as any);
+      }
+
+      case 'vonage': {
+        const { executeVonage } = await import('./connectors/vonage');
+        return executeVonage(actionId, input, credentials as any);
+      }
+
+      case 'google_cloud_platform': {
+        const { executeGoogleCloudPlatform } = await import('./connectors/googleCloudPlatform');
+        return executeGoogleCloudPlatform(actionId, input, credentials as any);
+      }
+
+      case 'squarespace_commerce': {
+        const { executeSquarespaceCommerce } = await import('./connectors/squarespaceCommerce');
+        return executeSquarespaceCommerce(actionId, input, credentials as any);
+      }
+
+      case 'etsy': {
+        const { executeEtsy } = await import('./connectors/etsy');
+        return executeEtsy(actionId, input, credentials as any);
+      }
+
+      case 'aws': {
+        const { executeAWS } = await import('./connectors/aws');
+        return executeAWS(actionId, input, credentials as any);
+      }
+
+      case 'microsoft_azure': {
+        const { executeMicrosoftAzure } = await import('./connectors/microsoftAzure');
+        return executeMicrosoftAzure(actionId, input, credentials as any);
+      }
+
+      case 'linkedin': {
+        const { executeLinkedIn } = await import('./connectors/linkedin');
+        return executeLinkedIn(actionId, input, credentials as any);
+      }
+
+      case 'twitter': {
+        const { executeTwitter } = await import('./connectors/twitter');
+        return executeTwitter(actionId, input, credentials as any);
+      }
+
+      case 'facebook': {
+        const { executeFacebook } = await import('./connectors/facebook');
+        return executeFacebook(actionId, input, credentials as any);
+      }
+
+      case 'instagram': {
+        const { executeInstagram } = await import('./connectors/instagram');
+        return executeInstagram(actionId, input, credentials as any);
+      }
+
+      case 'youtube': {
+        const { executeYouTube } = await import('./connectors/youtube');
+        return executeYouTube(actionId, input, credentials as any);
+      }
+
+      case 'wordpress': {
+        const { executeWordPress } = await import('./connectors/wordpress');
+        return executeWordPress(actionId, input, credentials as any);
+      }
+
       case 'slack': {
         // Use existing Slack executor
         const { executeSlack } = await import('./slack');

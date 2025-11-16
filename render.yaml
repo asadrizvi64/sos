@@ -13,28 +13,88 @@ services:
         value: production
       - key: PORT
         value: 4000
+      
+      # Database (Supabase PostgreSQL)
       - key: DATABASE_URL
-        fromDatabase:
-          name: sos-db
-          property: connectionString
+        sync: false  # Set this in Render dashboard
+      
+      # Redis
       - key: REDIS_URL
         fromService:
           name: sos-redis
           type: redis
           property: connectionString
+      
+      # Authentication (Clerk)
+      - key: CLERK_SECRET_KEY
+        sync: false  # Set this in Render dashboard
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false  # Set this in Render dashboard
+      
+      # AI Providers
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Set this in Render dashboard
+      
+      # Email Service
+      - key: RESEND_API_KEY
+        sync: false  # Set this in Render dashboard
+      
+      # Nango OAuth (REQUIRED for 57 OAuth connectors)
+      - key: NANGO_SECRET_KEY
+        sync: false  # Set this in Render dashboard - Get from https://nango.dev
+      - key: NANGO_HOST
+        value: https://api.nango.dev
+      
+      # Supabase (for code blob storage)
       - key: SUPABASE_URL
-        sync: false
+        sync: false  # Set this in Render dashboard
       - key: SUPABASE_ANON_KEY
-        sync: false
+        sync: false  # Set this in Render dashboard
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: JWT_SECRET
-        generateValue: true
+        sync: false  # Set this in Render dashboard
+      
+      # CORS - Will be set automatically from frontend service
       - key: CORS_ORIGIN
         fromService:
           name: sos-frontend
           type: web
           property: host
+      
+      # OpenTelemetry (Optional)
+      - key: OTEL_ENABLED
+        value: "false"  # Set to "true" if using OpenTelemetry
+      - key: OTEL_SERVICE_NAME
+        value: sos-backend
+      - key: OTEL_SERVICE_VERSION
+        value: "1.0.0"
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false  # Set if using OpenTelemetry
+      
+      # PostHog Analytics (Optional)
+      - key: POSTHOG_API_KEY
+        sync: false  # Set if using PostHog
+      - key: POSTHOG_HOST
+        value: https://app.posthog.com
+      
+      # RudderStack (Optional)
+      - key: RUDDERSTACK_WRITE_KEY
+        sync: false  # Set if using RudderStack
+      - key: RUDDERSTACK_DATA_PLANE_URL
+        value: https://hosted.rudderlabs.com
+      
+      # StackStorm (Optional - for self-healing)
+      - key: STACKSTORM_ENABLED
+        value: "false"  # Set to "true" if using StackStorm
+      - key: STACKSTORM_API_URL
+        sync: false  # Set if using StackStorm
+      - key: STACKSTORM_API_KEY
+        sync: false  # Set if using StackStorm
+      
+      # JWT Secret (auto-generated)
+      - key: JWT_SECRET
+        generateValue: true
 
   # Frontend Static Site
   - type: web
@@ -49,6 +109,8 @@ services:
           name: sos-backend
           type: web
           property: host
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false  # Set this in Render dashboard (same as CLERK_PUBLISHABLE_KEY)
 
   # Redis Service
   - type: redis
@@ -57,11 +119,10 @@ services:
     plan: starter
     maxmemoryPolicy: allkeys-lru
 
-databases:
-  # Note: We're using Supabase for PostgreSQL, but you can add a Render DB here as backup
-  # - name: sos-db
-  #   databaseName: sos_automation
-  #   user: sos
-  #   region: oregon
-  #   plan: starter
-
+# Note: We're using Supabase for PostgreSQL, but you can add a Render DB here as backup
+# databases:
+#   - name: sos-db
+#     databaseName: sos_automation
+#     user: sos
+#     region: oregon
+#     plan: starter

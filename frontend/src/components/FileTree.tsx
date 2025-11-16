@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useModals } from '../lib/modals';
 
 interface FileNode {
   name: string;
@@ -27,6 +28,7 @@ export default function FileTree({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState('');
+  const { prompt, confirm } = useModals();
 
   const toggleFolder = (path: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -60,9 +62,9 @@ export default function FileTree({
             <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{node.name}</span>
             {onAddFile && (
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  const newPath = prompt('Enter file/folder name:');
+                  const newPath = await prompt('Enter file/folder name:', 'New File/Folder', '', 'Enter file/folder name');
                   if (newPath) {
                     onAddFile(`${fullPath}/${newPath}`, 'file');
                   }
@@ -123,9 +125,10 @@ export default function FileTree({
               <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{node.name}</span>
               {onDeleteFile && (
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete ${node.name}?`)) {
+                    const confirmed = await confirm(`Delete ${node.name}?`, 'Confirm Delete', 'danger');
+                    if (confirmed) {
                       onDeleteFile(fullPath);
                     }
                   }}
@@ -160,8 +163,8 @@ export default function FileTree({
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Files</h3>
           {onAddFile && (
             <button
-              onClick={() => {
-                const newPath = prompt('Enter file name:');
+              onClick={async () => {
+                const newPath = await prompt('Enter file name:', 'New File', '', 'Enter file name');
                 if (newPath) {
                   onAddFile(newPath, 'file');
                 }

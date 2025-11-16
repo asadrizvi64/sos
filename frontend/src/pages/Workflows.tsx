@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import WorkflowTemplates from '../components/WorkflowTemplates';
 import { queryKeys } from '../lib/queryKeys';
+import { useModals } from '../lib/modals';
 
 interface Workflow {
   id: string;
@@ -20,6 +21,7 @@ export default function Workflows() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const { alert, confirm } = useModals();
 
   // Fetch all workflows to get all available tags
   const { data: allWorkflows = [] } = useQuery({
@@ -53,13 +55,13 @@ export default function Workflows() {
       const response = await api.post(`/workflows/${workflowId}/duplicate`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats });
-      alert('Workflow duplicated successfully!');
+      await alert('Workflow duplicated successfully!', 'Success', 'success');
     },
-    onError: (err: any) => {
-      alert(`Failed to duplicate workflow: ${err.response?.data?.error || err.message}`);
+    onError: async (err: any) => {
+      await alert(`Failed to duplicate workflow: ${err.response?.data?.error || err.message}`, 'Error', 'error');
     },
   });
 
@@ -67,23 +69,25 @@ export default function Workflows() {
     mutationFn: async (workflowId: string) => {
       await api.delete(`/workflows/${workflowId}`);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats });
-      alert('Workflow deleted successfully!');
+      await alert('Workflow deleted successfully!', 'Success', 'success');
     },
-    onError: (err: any) => {
-      alert(`Failed to delete workflow: ${err.response?.data?.error || err.message}`);
+    onError: async (err: any) => {
+      await alert(`Failed to delete workflow: ${err.response?.data?.error || err.message}`, 'Error', 'error');
     },
   });
 
-  const handleDuplicate = (workflowId: string) => {
-    if (!confirm('Duplicate this workflow?')) return;
+  const handleDuplicate = async (workflowId: string) => {
+    const confirmed = await confirm('Duplicate this workflow?', 'Confirm Duplicate', 'info');
+    if (!confirmed) return;
     duplicateMutation.mutate(workflowId);
   };
 
-  const handleDelete = (workflowId: string) => {
-    if (!confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) return;
+  const handleDelete = async (workflowId: string) => {
+    const confirmed = await confirm('Are you sure you want to delete this workflow? This action cannot be undone.', 'Confirm Delete', 'danger');
+    if (!confirmed) return;
     deleteMutation.mutate(workflowId);
   };
 

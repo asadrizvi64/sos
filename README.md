@@ -40,7 +40,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Email
 RESEND_API_KEY=re_...
 
-# Nango OAuth (optional - for third-party service integrations)
+# Nango OAuth (REQUIRED for OAuth-based integrations - 57 connectors)
+# Sign up at https://nango.dev to get your secret key
+# Without this, OAuth connectors (Slack, GitHub, Salesforce, etc.) will not work
 NANGO_SECRET_KEY=nango_sk_...
 NANGO_HOST=https://api.nango.dev
 

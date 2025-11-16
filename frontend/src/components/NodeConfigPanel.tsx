@@ -4,6 +4,7 @@ import { getNodeDefinition } from '../lib/nodes/nodeRegistry';
 import api from '../lib/api';
 import { CodeEditor } from './CodeEditor';
 import { useQuery } from '@tanstack/react-query';
+import { useModals } from '../lib/modals';
 
 interface NodeConfigPanelProps {
   node: Node | null;
@@ -16,6 +17,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
   const [retry, setRetry] = useState<Record<string, unknown>>({});
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const { alert, prompt } = useModals();
 
   // Fetch code agents for hook selection
   const { data: codeAgents } = useQuery({
@@ -174,7 +176,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
       console.error('Error initiating OAuth:', error);
       setConnectionStatus('error');
       setIsConnecting(false);
-      alert(`Failed to connect ${provider}: ${error.response?.data?.error || error.message}`);
+      await alert(`Failed to connect ${provider}: ${error.response?.data?.error || error.message}`, 'Connection Error', 'error');
     }
   };
 
@@ -238,13 +240,13 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
             }
           }, 1000);
         } else if (data.requiresManualSetup) {
-          alert(`Please configure ${connectorInfo.name} credentials manually. Auth type: ${data.authType}`);
+          await alert(`Please configure ${connectorInfo.name} credentials manually. Auth type: ${data.authType}`, 'Manual Configuration Required', 'warning');
           setIsConnecting(false);
           setConnectionStatus('idle');
         }
       } else if (connectorInfo.auth?.type === 'api_key') {
         // Show API key input modal
-        const apiKey = prompt(`Enter your ${connectorInfo.name} API key:`);
+        const apiKey = await prompt(`Enter your ${connectorInfo.name} API key:`, 'API Key Required', '', `Enter your ${connectorInfo.name} API key`);
         if (apiKey) {
           try {
             await api.post('/connectors/credentials', {
@@ -256,7 +258,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
             // Refetch credentials
             window.location.reload();
           } catch (error: any) {
-            alert(`Failed to save API key: ${error.response?.data?.error || error.message}`);
+            await alert(`Failed to save API key: ${error.response?.data?.error || error.message}`, 'Error', 'error');
             setIsConnecting(false);
             setConnectionStatus('idle');
           }
@@ -266,7 +268,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
         }
       } else if (connectorInfo.auth?.type === 'connection_string') {
         // Show connection string input modal
-        const connectionString = prompt(`Enter your ${connectorInfo.name} connection string:`);
+        const connectionString = await prompt(`Enter your ${connectorInfo.name} connection string:`, 'Connection String Required', '', `Enter your ${connectorInfo.name} connection string`);
         if (connectionString) {
           try {
             await api.post('/connectors/credentials', {
@@ -278,7 +280,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
             // Refetch credentials
             window.location.reload();
           } catch (error: any) {
-            alert(`Failed to save connection string: ${error.response?.data?.error || error.message}`);
+            await alert(`Failed to save connection string: ${error.response?.data?.error || error.message}`, 'Error', 'error');
             setIsConnecting(false);
             setConnectionStatus('idle');
           }
@@ -289,7 +291,7 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigP
       }
     } catch (error: any) {
       console.error('Failed to connect connector:', error);
-      alert(`Failed to connect: ${error.response?.data?.error || error.message}`);
+      await alert(`Failed to connect: ${error.response?.data?.error || error.message}`, 'Connection Error', 'error');
       setIsConnecting(false);
       setConnectionStatus('error');
     }
