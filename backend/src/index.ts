@@ -9,6 +9,7 @@ initializeTelemetry();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import workflowsRouter from './routes/workflows';
@@ -154,10 +155,26 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
+// Serve static files from frontend dist directory (in production)
+// This must be after all API routes but before the 404 handler
+if (process.env.NODE_ENV === 'production') {
+  const frontendDistPath = path.join(__dirname, '../public');
+  app.use(express.static(frontendDistPath));
+  
+  // Serve index.html for all non-API routes (SPA routing)
+  app.get('*', (req, res) => {
+    // Skip API routes and other specific routes - these should have been handled above
+    if (req.path.startsWith('/api') || req.path.startsWith('/webhooks') || req.path.startsWith('/api-docs')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // 404 handler for development (when frontend is served separately)
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+}
 
 httpServer.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
