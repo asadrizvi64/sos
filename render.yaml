@@ -5,10 +5,9 @@ services:
     env: node
     region: oregon
     plan: standard  # Upgraded plan with more CPU and space
-    # No rootDir - build from root to use root package-lock.json
-    # Optimized npm install with flags to speed up and prevent hangs
-    buildCommand: npm ci --legacy-peer-deps --no-audit --no-fund --prefer-offline && cd backend && npm run build
-    startCommand: cd backend && npm start
+    # Single package.json at root - simple build process
+    buildCommand: npm ci --legacy-peer-deps --no-audit --no-fund && npm run build
+    startCommand: npm start
     healthCheckPath: /health
     # Build filters: Only deploy when backend/shared code changes (monorepo optimization)
     buildFilter:
