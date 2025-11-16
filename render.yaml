@@ -6,9 +6,19 @@ services:
     region: oregon
     plan: starter
     # No rootDir - build from root to use root package-lock.json
-    buildCommand: npm ci && cd backend && npm run build
+    # Using npm install instead of npm ci for faster builds (npm ci can be very slow with workspaces)
+    buildCommand: npm install && cd backend && npm run build
     startCommand: cd backend && npm start
     healthCheckPath: /health
+    # Build filters: Only deploy when backend/shared code changes (monorepo optimization)
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+        - .npmrc
     envVars:
       - key: NODE_ENV
         value: production
@@ -60,9 +70,9 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false  # Set this in Render dashboard
       
-      # CORS - Frontend is served from the same origin as backend
+      # CORS - Frontend is served from the same origin as backend (empty = same origin)
       - key: CORS_ORIGIN
-        value: https://sos-backend-yffi.onrender.com
+        value: ""  # Empty string - backend will use same origin since frontend is served from backend
       
       # OpenTelemetry (Optional)
       - key: OTEL_ENABLED
