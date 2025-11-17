@@ -1,9 +1,0 @@
-name: Deploy to Railway
-
-on:
-  # Disabled - using Render instead
-  # push:
-  #   branches:
-  #     - main
-  workflow_dispatch:  # Can still be triggered manually if needed
-
