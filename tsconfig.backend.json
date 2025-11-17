@@ -4,7 +4,7 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "./backend/dist",
-    "rootDir": "./backend/src",
+    "rootDir": "./backend",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
