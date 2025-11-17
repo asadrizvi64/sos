@@ -6,17 +6,29 @@ applications:
     type: nodejs:20
     hooks:
       build: |
-        # Ensure dev dependencies are installed (Upsun may only install production deps)
+        # Upsun may only install production dependencies, so force install dev deps
+        # Remove node_modules first to ensure clean install
+        rm -rf node_modules package-lock.json
+        # Install all dependencies including dev dependencies
         npm install --legacy-peer-deps --no-audit --no-fund
-        # Add node_modules/.bin to PATH and run build in same shell
+        # Verify TypeScript is installed
+        if [ ! -f node_modules/.bin/tsc ]; then
+          echo "ERROR: TypeScript (tsc) not found after installation"
+          echo "Checking if typescript package is installed..."
+          ls -la node_modules/typescript 2>/dev/null || echo "typescript package not found in node_modules"
+          echo "Installing TypeScript explicitly..."
+          npm install --save-dev typescript --legacy-peer-deps --no-audit --no-fund
+        fi
+        # Add node_modules/.bin to PATH
         export PATH="$(pwd)/node_modules/.bin:$PATH"
         # Verify tsc is available
         if ! command -v tsc &> /dev/null; then
-          echo "ERROR: TypeScript (tsc) not found in PATH"
+          echo "ERROR: TypeScript (tsc) still not found in PATH"
           echo "PATH: $PATH"
-          ls -la node_modules/.bin/tsc || echo "tsc not in node_modules/.bin"
+          ls -la node_modules/.bin/ | grep tsc || echo "tsc not in node_modules/.bin"
           exit 1
         fi
+        echo "✓ TypeScript found: $(which tsc)"
         # Run build with PATH set
         PATH="$(pwd)/node_modules/.bin:$PATH" npm run build
     web:
