@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { emailTriggers } from '../drizzle/schema';
+import { emailTriggers } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
 /**

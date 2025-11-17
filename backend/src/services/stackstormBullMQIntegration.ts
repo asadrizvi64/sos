@@ -72,14 +72,14 @@ export class StackStormBullMQIntegration {
     });
 
     // Initialize worker for StackStorm execution queue
-    this.initializeStackStormWorker();
+    this.initializeStackStormWorker().catch(err => console.error('Failed to initialize StackStorm worker:', err));
   }
 
   /**
    * Initialize worker for StackStorm execution queue
    */
-  private initializeStackStormWorker(): void {
-    const { Worker } = require('bullmq');
+  private async initializeStackStormWorker(): Promise<void> {
+    const { Worker } = await import('bullmq');
     
     this.stackstormWorker = new Worker(
       'stackstorm-execution',

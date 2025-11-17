@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { osintMonitors, osintResults, workflows } from '../drizzle/schema';
+import { osintMonitors, osintResults, workflows } from '../../drizzle/schema';
 import { eq, and, desc, lt, sql } from 'drizzle-orm';
 import { workflowExecutor } from './workflowExecutor';
 import axios from 'axios';

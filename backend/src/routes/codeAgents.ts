@@ -12,7 +12,7 @@ const router = Router();
 router.use(auditLogMiddleware);
 
 // Create code agent
-router.post('/', authenticate, setOrganization, async (req: AuthRequest, res) => {
+router.post('/', authenticate, setOrganization, requirePermission({ resourceType: 'code_agent', action: 'create' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

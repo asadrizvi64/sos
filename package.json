@@ -1,7 +1,7 @@
 {
   "name": "sos-automation-platform",
   "version": "1.0.0",
-  "description": "AI-Powered Automation Platform similar to n8n",
+  "description": "AI-Powered Workflow Automation Platform",
   "private": true,
   "type": "module",
   "main": "backend/dist/index.js",

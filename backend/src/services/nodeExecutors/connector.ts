@@ -3,7 +3,7 @@ import { connectorRouter, ConnectorProvider } from '../connectorRouter';
 import { connectorRegistry } from '../connectors/registry';
 import { nangoService } from '../nangoService';
 import { db } from '../../config/database';
-import { connectorCredentials } from '../../drizzle/schema';
+import { connectorCredentials } from '../../../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import axios from 'axios';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
@@ -93,7 +93,7 @@ export async function executeConnector(context: NodeExecutionContext): Promise<N
           error: {
             message: `No connection found for ${connectorId}. Please connect your account first.`,
             code: 'NO_CONNECTION',
-            metadata: {
+            details: {
               connectorId,
               provider: 'nango',
               authUrl: `/api/v1/nango/oauth/${connectorId}/authorize`,
@@ -106,8 +106,8 @@ export async function executeConnector(context: NodeExecutionContext): Promise<N
       const connectionId = `${userId}-${connectorId}-${Date.now()}`;
       const token = await nangoService.getToken(connectorId, connection.id);
       credentials = {
-        access_token: token,
         ...connection.credentials,
+        access_token: token,
       };
     } else if (routingDecision.provider === ConnectorProvider.CUSTOM_OAUTH) {
       // Get credentials from database (for custom OAuth like Gmail/Outlook)
@@ -129,7 +129,7 @@ export async function executeConnector(context: NodeExecutionContext): Promise<N
           error: {
             message: `No credentials found for ${connectorId}. Please connect your account first.`,
             code: 'NO_CREDENTIALS',
-            metadata: {
+            details: {
               connectorId,
               provider: 'custom_oauth',
             },
@@ -144,7 +144,7 @@ export async function executeConnector(context: NodeExecutionContext): Promise<N
         error: {
           message: routingDecision.reason,
           code: 'ROUTING_ERROR',
-          metadata: routingDecision.metadata,
+          details: routingDecision.metadata,
         },
       };
     } else {
@@ -154,7 +154,7 @@ export async function executeConnector(context: NodeExecutionContext): Promise<N
         error: {
           message: `Provider ${routingDecision.provider} is not yet implemented`,
           code: 'PROVIDER_NOT_IMPLEMENTED',
-          metadata: routingDecision.metadata,
+          details: routingDecision.metadata,
         },
       };
     }
@@ -780,7 +780,7 @@ async function executeConnectorAction(
           error: {
             message: `Connector ${connectorId} action ${actionId} execution is not yet fully implemented. Credentials are available.`,
             code: 'ACTION_NOT_IMPLEMENTED',
-            metadata: {
+            details: {
               connectorId,
               actionId,
               hasCredentials: !!accessToken,

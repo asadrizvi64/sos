@@ -1,4 +1,5 @@
-import { E2B } from '@e2b/sdk';
+// E2B SDK - Updated for v0.12.5 API
+import { CodeRuntime } from '@e2b/sdk';
 import { NodeExecutionResult } from '@sos/shared';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 
@@ -16,20 +17,17 @@ export interface E2BConfig {
 }
 
 export class E2BRuntime {
-  private client: E2B | null = null;
   private apiKey: string;
+  private sdkAvailable: boolean = true;
 
   constructor(config?: E2BConfig) {
     this.apiKey = config?.apiKey || process.env.E2B_API_KEY || '';
     
     if (!this.apiKey) {
       console.warn('E2B_API_KEY not set. E2B runtime will not be available.');
+      this.sdkAvailable = false;
     } else {
-      try {
-        this.client = new E2B(this.apiKey);
-      } catch (error) {
-        console.error('Failed to initialize E2B client:', error);
-      }
+      this.sdkAvailable = true;
     }
   }
 
@@ -37,7 +35,7 @@ export class E2BRuntime {
    * Check if E2B is available
    */
   isAvailable(): boolean {
-    return this.client !== null && !!this.apiKey;
+    return this.sdkAvailable && !!this.apiKey;
   }
 
   /**
@@ -85,95 +83,86 @@ export class E2BRuntime {
         template = 'node'; // JavaScript/TypeScript
       }
 
-      // Create sandbox
-      const sandbox = await this.client!.sandbox.create({
+      // Create CodeRuntime instance (new API in v0.12.5)
+      const runtime = await CodeRuntime.create({
+        apiKey: this.apiKey,
         template,
       });
 
       span.setAttributes({
         'e2b.template': template,
-        'e2b.sandbox_id': sandbox.sandboxId,
+        'e2b.runtime_id': runtime.id || 'unknown',
       });
 
       try {
-        // Prepare code file
-        const codeFile = language === 'python' ? '/code/main.py' : 
-                        language === 'bash' ? '/code/main.sh' : 
-                        '/code/main.js';
-
-        // Write code to file
-        await sandbox.filesystem.write(codeFile, code);
-
-        // Prepare execution command
-        let command: string[];
+        // Prepare code with input
+        const inputJson = JSON.stringify(input);
+        let codeWithInput = code;
+        
+        // For Python, add input parsing
         if (language === 'python') {
-          command = ['python3', codeFile];
+          codeWithInput = `import json, sys\nINPUT = json.loads('${inputJson.replace(/'/g, "\\'")}')\n${code}`;
+        } else if (language === 'javascript' || language === 'typescript') {
+          // For JavaScript/TypeScript, add input parsing
+          codeWithInput = `const INPUT = ${inputJson};\n${code}`;
         } else if (language === 'bash') {
-          command = ['bash', codeFile];
-        } else {
-          // JavaScript/TypeScript - compile TypeScript first if needed
-          if (language === 'typescript') {
-            // For TypeScript, we'd need to compile it first
-            // For now, assume it's already compiled or use ts-node
-            command = ['node', codeFile];
-          } else {
-            command = ['node', codeFile];
-          }
+          // For bash, set as environment variable
+          codeWithInput = `export INPUT='${inputJson.replace(/'/g, "'\\''")}'\n${code}`;
         }
 
-        // Set input as environment variable
-        const envVars: Record<string, string> = {
-          INPUT: JSON.stringify(input),
-        };
-
-        // Execute code
-        const exec = await sandbox.process.start({
-          cmd: command,
-          envVars,
+        // Execute code using the new API
+        const execution = await runtime.runCode(codeWithInput, {
+          timeout: timeout / 1000, // Convert to seconds
         });
 
-        // Wait for execution with timeout
+        // Wait for execution result
         const result = await Promise.race([
-          exec.wait(),
+          execution,
           new Promise<{ exitCode: number; stdout: string; stderr: string }>((_, reject) =>
             setTimeout(() => reject(new Error(`E2B execution timed out after ${timeout}ms`)), timeout)
           ),
         ]);
 
-        // Parse output
+        // Parse output - E2B v0.12.5 returns result differently
+        // The result structure may vary, so we handle both old and new formats
         let output: any;
+        let stdout = '';
+        let stderr = '';
+        let exitCode = 0;
+        let success = true;
+
+        // Handle different result formats
+        if (typeof result === 'string') {
+          stdout = result;
+        } else if (result && typeof result === 'object') {
+          stdout = result.stdout || result.text || result.output || '';
+          stderr = result.stderr || result.error || '';
+          exitCode = result.exitCode || result.code || (stderr ? 1 : 0);
+          success = exitCode === 0 && !stderr;
+        } else {
+          stdout = String(result || '');
+        }
+
         try {
-          const stdout = result.stdout.trim();
-          if (stdout) {
-            output = JSON.parse(stdout);
+          const stdoutTrimmed = stdout.trim();
+          if (stdoutTrimmed) {
+            output = JSON.parse(stdoutTrimmed);
           } else {
             output = input; // Return input if no output
           }
         } catch {
           // If JSON parsing fails, return raw stdout
-          output = result.stdout.trim() || input;
+          output = stdout.trim() || input;
         }
 
-        const success = result.exitCode === 0;
         const durationMs = Date.now() - startTime;
-
-        // Try to get memory usage from sandbox metrics if available
-        let memoryMb: number | undefined;
-        try {
-          // E2B may provide memory metrics - check if available
-          // This is a placeholder - actual implementation depends on E2B SDK capabilities
-          // For now, we'll leave it undefined
-        } catch {
-          // Memory metrics not available
-        }
 
         span.setAttributes({
           'e2b.success': success,
-          'e2b.exit_code': result.exitCode,
-          'e2b.stdout_length': result.stdout.length,
-          'e2b.stderr_length': result.stderr.length,
+          'e2b.exit_code': exitCode,
+          'e2b.stdout_length': stdout.length,
+          'e2b.stderr_length': stderr.length,
           'e2b.duration_ms': durationMs,
-          ...(memoryMb !== undefined && { 'e2b.memory_mb': memoryMb }),
         });
         span.setStatus({
           code: success ? SpanStatusCode.OK : SpanStatusCode.ERROR,
@@ -187,22 +176,25 @@ export class E2BRuntime {
           error: success
             ? undefined
             : {
-                message: result.stderr || 'E2B execution failed',
+                message: stderr || 'E2B execution failed',
                 code: 'E2B_EXECUTION_ERROR',
                 details: {
-                  exitCode: result.exitCode,
-                  stderr: result.stderr,
-                  stdout: result.stdout,
+                  exitCode,
+                  stderr,
+                  stdout,
                 },
               },
           metadata: {
-            exitCode: result.exitCode,
-            ...(memoryMb !== undefined && { memoryMb }),
+            exitCode,
           },
         };
       } finally {
-        // Always close sandbox
-        await sandbox.close();
+        // Cleanup runtime
+        try {
+          await runtime.close();
+        } catch (error) {
+          console.warn('Error closing E2B runtime:', error);
+        }
       }
     } catch (error: any) {
       span.recordException(error);

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { setOrganization } from '../middleware/organization';
 import { db } from '../config/database';
-import { osintMonitors, osintResults } from '../drizzle/schema';
+import { osintMonitors, osintResults } from '../../drizzle/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { osintService } from '../services/osintService';
 import { auditLogMiddleware } from '../middleware/auditLog';

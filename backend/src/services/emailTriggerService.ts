@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { emailTriggers, workflows } from '../drizzle/schema';
+import { emailTriggers, workflows } from '../../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { WorkflowDefinition } from '@sos/shared';
 import { workflowExecutor } from './workflowExecutor';

@@ -1,7 +1,7 @@
 import { NodeExecutionContext, NodeExecutionResult } from '@sos/shared';
 import { osintService } from '../osintService';
 import { db } from '../../config/database';
-import { osintMonitors, osintResults } from '../../drizzle/schema';
+import { osintMonitors, osintResults } from '../../../drizzle/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 export async function executeOSINTNode(

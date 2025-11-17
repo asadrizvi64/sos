@@ -15,8 +15,12 @@ if (!process.env.DATABASE_URL) {
 let connectionString = process.env.DATABASE_URL;
 
 // Convert direct connection to shared session pooler if needed
+// Direct connections often fail with ENOTFOUND, so always use pooler for known Supabase projects
 if (connectionString.includes('db.qgfutvkhhsjbjthkammv.supabase.co')) {
-  connectionString = 'postgresql://postgres.qgfutvkhhsjbjthkammv:SynthralOS@aws-1-us-west-1.pooler.supabase.com:5432/postgres';
+  // Extract password from original URL if present
+  const passwordMatch = connectionString.match(/:\/\/[^:]+:([^@]+)@/);
+  const password = passwordMatch ? passwordMatch[1] : 'SynthralOS';
+  connectionString = `postgresql://postgres.qgfutvkhhsjbjthkammv:${password}@aws-1-us-west-1.pooler.supabase.com:5432/postgres`;
 }
 
 // Configure postgres client
