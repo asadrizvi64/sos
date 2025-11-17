@@ -27,6 +27,9 @@ primary_region = "iad"  # Washington, D.C. - change to your preferred region
     timeout = "5s"
     path = "/health"
 
+[processes]
+  app = "node backend/dist/index.js"
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
