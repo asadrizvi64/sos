@@ -285,50 +285,70 @@ export default function Alerts() {
       {/* Alert Detail Modal */}
       {showDetail && alertDetail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Alert Details</h2>
-              <button
-                onClick={() => {
-                  setShowDetail(false);
-                  setAlertDetail(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Alert Details</h2>
+                <button
+                  onClick={() => {
+                    setShowDetail(false);
+                    setAlertDetail(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="space-y-4">
+            <div className="p-6 space-y-6">
               <div>
-                <h3 className="font-semibold mb-2">Name</h3>
-                <p className="text-gray-700">{alertDetail.name}</p>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Name</h3>
+                <p className="text-gray-900 dark:text-gray-100 text-lg">{alertDetail.name}</p>
               </div>
               {alertDetail.description && (
                 <div>
-                  <h3 className="font-semibold mb-2">Description</h3>
-                  <p className="text-gray-700">{alertDetail.description}</p>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h3>
+                  <p className="text-gray-700 dark:text-gray-300">{alertDetail.description}</p>
                 </div>
               )}
-              <div>
-                <h3 className="font-semibold mb-2">Type</h3>
-                <span className={`px-2 py-1 rounded text-sm ${getTypeColor(alertDetail.type)}`}>
-                  {alertDetail.type}
-                </span>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Type</h3>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(alertDetail.type)}`}>
+                    {alertDetail.type}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Status</h3>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    alertDetail.enabled 
+                      ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                  }`}>
+                    {alertDetail.enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                {alertDetail.cooldownMinutes && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cooldown</h3>
+                    <p className="text-gray-900 dark:text-gray-100">{alertDetail.cooldownMinutes} minutes</p>
+                  </div>
+                )}
+                {alertDetail.lastTriggeredAt && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Last Triggered</h3>
+                    <p className="text-gray-900 dark:text-gray-100">{new Date(alertDetail.lastTriggeredAt).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Status</h3>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  alertDetail.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {alertDetail.enabled ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Conditions</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Conditions</h3>
                 <div className="space-y-2">
                   {alertDetail.conditions.map((condition, idx) => (
-                    <div key={idx} className="p-2 bg-gray-50 rounded">
-                      <p className="text-sm">
+                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 font-mono">
                         <strong>{condition.metric}</strong> {condition.operator} {condition.threshold}
                         {condition.timeWindow && ` (within ${condition.timeWindow} minutes)`}
                       </p>
@@ -337,37 +357,25 @@ export default function Alerts() {
                 </div>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Notification Channels</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notification Channels</h3>
                 <div className="space-y-2">
                   {alertDetail.notificationChannels.map((channel, idx) => (
-                    <div key={idx} className="p-2 bg-gray-50 rounded">
-                      <p className="text-sm">
-                        <strong>{channel.type}</strong>: {channel.config.email || channel.config.slackWebhookUrl || channel.config.webhookUrl || 'Not configured'}
+                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        <strong className="capitalize">{channel.type}</strong>: {channel.config.email || channel.config.slackWebhookUrl || channel.config.webhookUrl || 'Not configured'}
                       </p>
                     </div>
                   ))}
                 </div>
               </div>
-              {alertDetail.cooldownMinutes && (
-                <div>
-                  <h3 className="font-semibold mb-2">Cooldown</h3>
-                  <p className="text-gray-700">{alertDetail.cooldownMinutes} minutes</p>
-                </div>
-              )}
-              {alertDetail.lastTriggeredAt && (
-                <div>
-                  <h3 className="font-semibold mb-2">Last Triggered</h3>
-                  <p className="text-gray-700">{new Date(alertDetail.lastTriggeredAt).toLocaleString()}</p>
-                </div>
-              )}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
                 onClick={() => {
                   setShowDetail(false);
                   setAlertDetail(null);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
               >
                 Close
               </button>

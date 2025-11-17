@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { setOrganization } from '../middleware/organization';
+import { requirePermission } from '../middleware/permissions';
 import { alertService, AlertConfig } from '../services/alertService';
 import { db } from '../config/database';
 import { alerts, alertHistory, organizations, organizationMembers } from '../../drizzle/schema';
@@ -92,7 +93,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // Create alert
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requirePermission({ resourceType: 'alert', action: 'create' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -127,7 +128,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // Update alert
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission({ resourceType: 'alert', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -162,7 +163,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 });
 
 // Delete alert
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission({ resourceType: 'alert', action: 'delete' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });

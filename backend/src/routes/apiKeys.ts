@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { setOrganization } from '../middleware/organization';
+import { requirePermission } from '../middleware/permissions';
 import { db } from '../config/database';
 import { apiKeys, organizations, organizationMembers, auditLogs } from '../../drizzle/schema';
 import { eq, and, desc, count, gte } from 'drizzle-orm';
@@ -10,7 +12,9 @@ import { auditLogMiddleware } from '../middleware/auditLog';
 
 const router = Router();
 
-// Apply audit logging to all routes
+// Apply middleware
+router.use(authenticate);
+router.use(setOrganization);
 router.use(auditLogMiddleware);
 
 // Create API key schema
@@ -37,7 +41,7 @@ function generateApiKey(): string {
 }
 
 // Get all API keys for current user
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+router.get('/', async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -112,7 +116,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Get API key by ID
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -158,7 +162,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Create API key
-router.post('/', authenticate, async (req: AuthRequest, res) => {
+router.post('/', requirePermission({ resourceType: 'api_key', action: 'create' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -224,7 +228,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Update API key
-router.put('/:id', authenticate, async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission({ resourceType: 'api_key', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -295,7 +299,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Delete API key
-router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission({ resourceType: 'api_key', action: 'delete' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -329,7 +333,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Rotate API key (generate new key)
-router.post('/:id/rotate', authenticate, async (req: AuthRequest, res) => {
+router.post('/:id/rotate', requirePermission({ resourceType: 'api_key', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

@@ -46,6 +46,9 @@ interface ConnectorManagerProps {
 export default function ConnectorManager({ onClose, onSelectConnector }: ConnectorManagerProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedConnector, setSelectedConnector] = useState<ConnectorManifest | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState<ConnectorManifest | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeyName, setApiKeyName] = useState('');
   const queryClient = useQueryClient();
 
   const { data: connectors, isLoading: loadingConnectors } = useQuery({
@@ -71,6 +74,29 @@ export default function ConnectorManager({ onClose, onSelectConnector }: Connect
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connectors', 'credentials'] });
+    },
+  });
+
+  const connectApiKeyMutation = useMutation({
+    mutationFn: async ({ connectorId, apiKey, name }: { connectorId: string; apiKey: string; name?: string }) => {
+      const response = await api.post('/connectors/credentials', {
+        connectorId,
+        credentials: {
+          apiKey,
+          name: name || 'API Key',
+        },
+        authType: 'api_key',
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectors', 'credentials'] });
+      setShowApiKeyModal(null);
+      setApiKey('');
+      setApiKeyName('');
+    },
+    onError: (error: any) => {
+      alert(`Failed to connect: ${error.response?.data?.error || error.message}`);
     },
   });
 
@@ -129,8 +155,8 @@ export default function ConnectorManager({ onClose, onSelectConnector }: Connect
         alert(`Failed to initiate connection: ${error.response?.data?.error || error.message}`);
       }
     } else if (connector.auth.type === 'api_key') {
-      // TODO: Implement API key input modal
-      alert(`Please configure ${connector.name} API key manually. This feature is coming soon.`);
+      // Show API key input modal
+      setShowApiKeyModal(connector);
     }
   };
 
@@ -260,6 +286,90 @@ export default function ConnectorManager({ onClose, onSelectConnector }: Connect
             </div>
           )}
         </div>
+
+        {/* API Key Input Modal */}
+        {showApiKeyModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Connect {showApiKeyModal.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowApiKeyModal(null);
+                    setApiKey('');
+                    setApiKeyName('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Connection Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={apiKeyName}
+                    onChange={(e) => setApiKeyName(e.target.value)}
+                    placeholder={`${showApiKeyModal.name} Connection`}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    API Key *
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Enter your API key"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    autoFocus
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Your API key will be encrypted and stored securely.
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowApiKeyModal(null);
+                      setApiKey('');
+                      setApiKeyName('');
+                    }}
+                    className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!apiKey.trim()) {
+                        alert('Please enter an API key');
+                        return;
+                      }
+                      connectApiKeyMutation.mutate({
+                        connectorId: showApiKeyModal.id,
+                        apiKey: apiKey.trim(),
+                        name: apiKeyName.trim() || undefined,
+                      });
+                    }}
+                    disabled={connectApiKeyMutation.isPending || !apiKey.trim()}
+                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {connectApiKeyMutation.isPending ? 'Connecting...' : 'Connect'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Connector Details Modal */}
         {selectedConnector && (

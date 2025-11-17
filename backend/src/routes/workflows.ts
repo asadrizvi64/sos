@@ -14,6 +14,7 @@ import { updateWebhookRegistry, updateEmailTriggerRegistry } from '../services/w
 import { getOrCreateDefaultWorkspace } from '../services/workspaceService';
 import { auditLogMiddleware } from '../middleware/auditLog';
 import { setOrganization } from '../middleware/organization';
+import { requirePermission } from '../middleware/permissions';
 
 const router = Router();
 
@@ -156,7 +157,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Create workflow
-router.post('/', authenticate, async (req: AuthRequest, res) => {
+router.post('/', authenticate, requirePermission({ resourceType: 'workflow', action: 'create' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -237,7 +238,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Update workflow
-router.put('/:id', authenticate, async (req: AuthRequest, res) => {
+router.put('/:id', authenticate, requirePermission({ resourceType: 'workflow', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -332,7 +333,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Delete workflow
-router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+router.delete('/:id', authenticate, requirePermission({ resourceType: 'workflow', action: 'delete' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

@@ -24,6 +24,8 @@ export default function AdminTemplates() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState<Template | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Template | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState<Template | null>(null);
+  const [templateDetail, setTemplateDetail] = useState<Template | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -234,6 +236,20 @@ export default function AdminTemplates() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await api.get(`/templates/${template.id}`);
+                            setTemplateDetail(response.data);
+                            setShowDetailModal(template);
+                          } catch (error: any) {
+                            alert(`Failed to load template details: ${error.response?.data?.error || error.message}`);
+                          }
+                        }}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all duration-200 font-medium px-2 py-1"
+                      >
+                        View
+                      </button>
                       <button
                         onClick={() => handleEdit(template)}
                         className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all duration-200 font-medium px-2 py-1"
@@ -497,6 +513,102 @@ export default function AdminTemplates() {
                 className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all"
               >
                 {updateMutation.isPending ? 'Updating...' : 'Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Detail Modal */}
+      {showDetailModal && templateDetail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Template Details</h2>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(null);
+                    setTemplateDetail(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Name</h3>
+                <p className="text-gray-900 dark:text-gray-100 text-lg">{templateDetail.name}</p>
+              </div>
+              {templateDetail.description && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h3>
+                  <p className="text-gray-700 dark:text-gray-300">{templateDetail.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Category</h3>
+                  <p className="text-gray-900 dark:text-gray-100">{templateDetail.category || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Visibility</h3>
+                  <span
+                    className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                      templateDetail.isPublic
+                        ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-400'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                    }`}
+                  >
+                    {templateDetail.isPublic ? 'Public' : 'Private'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Usage Count</h3>
+                  <p className="text-gray-900 dark:text-gray-100">{templateDetail.usageCount}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Created</h3>
+                  <p className="text-gray-900 dark:text-gray-100">{new Date(templateDetail.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+              {templateDetail.tags && templateDetail.tags.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {templateDetail.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Definition</h3>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs text-gray-800 dark:text-gray-200">
+                    {JSON.stringify(templateDetail.definition, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDetailModal(null);
+                  setTemplateDetail(null);
+                }}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+              >
+                Close
               </button>
             </div>
           </div>

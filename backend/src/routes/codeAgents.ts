@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { codeAgentRegistry, CreateCodeAgentInput, UpdateCodeAgentInput } from '../services/codeAgentRegistry';
 import { auditLogMiddleware } from '../middleware/auditLog';
 import { setOrganization } from '../middleware/organization';
+import { requirePermission } from '../middleware/permissions';
 import { mcpServerService } from '../services/mcpServerService';
 
 const router = Router();
@@ -104,7 +105,7 @@ router.get('/:id', authenticate, setOrganization, async (req: AuthRequest, res) 
 });
 
 // Update code agent (creates new version)
-router.put('/:id', authenticate, setOrganization, async (req: AuthRequest, res) => {
+router.put('/:id', authenticate, setOrganization, requirePermission({ resourceType: 'code_agent', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -138,7 +139,7 @@ router.put('/:id', authenticate, setOrganization, async (req: AuthRequest, res) 
 });
 
 // Delete code agent
-router.delete('/:id', authenticate, setOrganization, async (req: AuthRequest, res) => {
+router.delete('/:id', authenticate, setOrganization, requirePermission({ resourceType: 'code_agent', action: 'delete' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

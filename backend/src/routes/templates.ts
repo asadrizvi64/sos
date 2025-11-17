@@ -4,6 +4,7 @@ import { db } from '../config/database';
 import { workflowTemplates, organizations, organizationMembers } from '../../drizzle/schema';
 import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import { setOrganization } from '../middleware/organization';
+import { requirePermission } from '../middleware/permissions';
 import { auditLogMiddleware } from '../middleware/auditLog';
 import { cacheMiddleware, invalidateEndpointCache } from '../middleware/cache';
 
@@ -392,7 +393,7 @@ router.get('/:id', setOrganization, cacheMiddleware({ ttl: 60, prefix: 'template
 });
 
 // Create a new template
-router.post('/', setOrganization, async (req: AuthRequest, res) => {
+router.post('/', setOrganization, requirePermission({ resourceType: 'template', action: 'create' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -432,7 +433,7 @@ router.post('/', setOrganization, async (req: AuthRequest, res) => {
 });
 
 // Update template
-router.put('/:id', setOrganization, async (req: AuthRequest, res) => {
+router.put('/:id', setOrganization, requirePermission({ resourceType: 'template', action: 'update' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -486,7 +487,7 @@ router.put('/:id', setOrganization, async (req: AuthRequest, res) => {
 });
 
 // Delete template
-router.delete('/:id', setOrganization, async (req: AuthRequest, res) => {
+router.delete('/:id', setOrganization, requirePermission({ resourceType: 'template', action: 'delete' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user || !req.organizationId) {
       res.status(401).json({ error: 'Unauthorized' });

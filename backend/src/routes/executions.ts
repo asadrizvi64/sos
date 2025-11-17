@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requirePermission } from '../middleware/permissions';
 import { workflowExecutor } from '../services/workflowExecutor';
 import { replayService } from '../services/replayService';
 import { db } from '../config/database';
@@ -61,7 +62,7 @@ router.get('/workflow/:workflowId', authenticate, async (req: AuthRequest, res) 
 });
 
 // Execute workflow
-router.post('/execute', authenticate, async (req: AuthRequest, res) => {
+router.post('/execute', authenticate, requirePermission({ resourceType: 'workflow', action: 'execute' }), async (req: AuthRequest, res) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
