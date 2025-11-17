@@ -1,0 +1,68 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Build outputs (will be built in Docker)
+backend/dist
+backend/public
+frontend/dist
+shared/dist
+dist
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Tests
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+Thumbs.db
+*.pem
+*.key
+
+# Deployment configs (keep only what's needed)
+.upsun
+render.yaml
+railway.json
+vercel.json
+fly.toml
+
+# Scripts
+*.sh
+!setup-env.sh
+
+# Examples
+examples
+
+# StackStorm packs (optional, can be excluded)
+backend/stackstorm-packs
+
