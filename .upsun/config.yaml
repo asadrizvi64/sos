@@ -4,8 +4,6 @@
 applications:
   backend:
     type: nodejs:20
-    source:
-      root: "."
     hooks:
       build: |
         npm ci --legacy-peer-deps --no-audit --no-fund
