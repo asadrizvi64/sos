@@ -6,10 +6,10 @@ applications:
     type: nodejs:20
     source:
       root: "."
-    build:
-      commands:
-        - npm ci --legacy-peer-deps --no-audit --no-fund
-        - npm run build
+    hooks:
+      build: |
+        npm ci --legacy-peer-deps --no-audit --no-fund
+        npm run build
     web:
       commands:
         start: npm start
