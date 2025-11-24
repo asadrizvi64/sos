@@ -40,58 +40,106 @@ export default function WorkflowChat({ onNodesGenerated, onClose }: WorkflowChat
     mutationFn: async (description: string) => {
       // Use the AI agent service to generate workflow suggestions
       const response = await api.post('/agents/execute', {
-        query: `Generate a workflow based on this description: "${description}". 
-        
-Return a JSON array of nodes with this structure:
+        query: `You are a workflow automation expert. Generate a workflow based on this description: "${description}". 
+
+IMPORTANT: Return ONLY a valid JSON array of nodes. Do not include any explanation text before or after the JSON.
+
+Return a JSON array with this exact structure:
 [
   {
     "type": "node_type",
-    "config": { ... },
+    "config": { "key": "value" },
     "description": "what this node does"
   }
 ]
 
-Available node types include:
-- trigger.manual, trigger.webhook, trigger.schedule, trigger.email.gmail
-- action.code.javascript, action.code.python
-- ai.llm, ai.agent, ai.rag
-- integration.* (for connectors)
-- logic.if, logic.loop.while, logic.merge
-- data.transform, data.filter
+Available node types:
+- Triggers: trigger.manual, trigger.webhook, trigger.schedule, trigger.email.gmail, trigger.email.outlook
+- Actions: action.code.javascript, action.code.python, action.web_scrape, action.http_request
+- AI: ai.llm, ai.agent, ai.rag, ai.embedding, ai.vector_store
+- Logic: logic.if, logic.loop.while, logic.loop.foreach, logic.merge, logic.switch
+- Data: data.transform, data.filter, data.map
+- Integration: integration.slack, integration.airtable, integration.google_sheets (use actual connector IDs)
 
-Be specific about the node types and configurations needed.`,
+Be specific about node types and include realistic config values.`,
         agentType: 'auto',
         useRouting: true,
       });
       return response.data;
     },
     onSuccess: (data) => {
-      // Parse the AI response to extract node suggestions
-      const assistantMessage: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: data.response || data.content || 'I\'ve generated workflow suggestions. Click "Add to Canvas" to add them.',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const responseText = data.response || data.content || data.output || '';
+      let parsedNodes: any[] = [];
+      let parseError: string | null = null;
       
-      // Try to extract JSON from the response
+      // Try multiple parsing strategies
       try {
-        const jsonMatch = data.response?.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const nodes = JSON.parse(jsonMatch[0]);
-          // Store nodes in message metadata for later use
-          (assistantMessage as any).nodes = nodes;
+        // Strategy 1: Direct JSON parse
+        parsedNodes = JSON.parse(responseText);
+      } catch {
+        try {
+          // Strategy 2: Extract JSON from markdown code blocks
+          const codeBlockMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+          if (codeBlockMatch) {
+            parsedNodes = JSON.parse(codeBlockMatch[1]);
+          } else {
+            // Strategy 3: Extract JSON array from text
+            const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              parsedNodes = JSON.parse(jsonMatch[0]);
+            }
+          }
+        } catch (error: any) {
+          parseError = error.message;
         }
-      } catch (error) {
-        console.error('Error parsing nodes from response:', error);
+      }
+      
+      // Validate parsed nodes
+      if (Array.isArray(parsedNodes) && parsedNodes.length > 0) {
+        // Validate node structure
+        const validNodes = parsedNodes.filter((node: any) => 
+          node && typeof node === 'object' && node.type
+        );
+        
+        if (validNodes.length > 0) {
+          const assistantMessage: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `I've generated a workflow with ${validNodes.length} node(s). Click "Add to Canvas" to add them to your workflow.`,
+            timestamp: new Date(),
+          };
+          (assistantMessage as any).nodes = validNodes;
+          setMessages((prev) => [...prev, assistantMessage]);
+        } else {
+          const errorMessage: Message = {
+            id: `error_${Date.now()}`,
+            role: 'assistant',
+            content: `I couldn't parse the workflow nodes from the response. Please try rephrasing your request or describe the workflow in more detail.`,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+        }
+      } else {
+        // If parsing failed, show the raw response with helpful message
+        const assistantMessage: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: responseText || 'I received a response but couldn\'t parse it as a workflow. Please try rephrasing your request with more specific details about the workflow steps.',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
       }
     },
     onError: (error: any) => {
       const errorMessage: Message = {
         id: `error_${Date.now()}`,
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${error.response?.data?.error || error.message}. Please try rephrasing your request.`,
+        content: `Sorry, I encountered an error: ${error.response?.data?.error || error.message || 'Unknown error'}. 
+
+Please try:
+- Rephrasing your request with more specific details
+- Breaking down complex workflows into simpler steps
+- Ensuring the AI agent service is properly configured`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -116,23 +164,30 @@ Be specific about the node types and configurations needed.`,
 
   const handleAddToCanvas = (message: Message) => {
     const nodes = (message as any).nodes;
-    if (!nodes || !Array.isArray(nodes)) {
-      alert('No workflow nodes found in this message. Please try asking again with more specific details.');
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+      alert('No workflow nodes found in this message. Please try asking again with more specific details about the workflow steps you need.');
       return;
     }
 
-    // Generate positions for nodes in a grid
-    const nodesWithPositions = nodes.map((node: any, index: number) => ({
-      type: node.type || 'action.code.javascript',
-      config: node.config || {},
-      position: {
-        x: 100 + (index % 3) * 300,
-        y: 100 + Math.floor(index / 3) * 200,
-      },
-    }));
+    // Validate and filter nodes
+    const validNodes = nodes
+      .filter((node: any) => node && typeof node === 'object' && node.type)
+      .map((node: any, index: number) => ({
+        type: node.type || 'action.code.javascript',
+        config: node.config || {},
+        position: {
+          x: 100 + (index % 3) * 300,
+          y: 100 + Math.floor(index / 3) * 200,
+        },
+      }));
 
-    onNodesGenerated(nodesWithPositions);
-    alert(`Added ${nodesWithPositions.length} node(s) to the canvas!`);
+    if (validNodes.length === 0) {
+      alert('No valid workflow nodes found. Please try rephrasing your request.');
+      return;
+    }
+
+    onNodesGenerated(validNodes);
+    alert(`✅ Added ${validNodes.length} node(s) to the canvas! You can now configure and connect them.`);
   };
 
   return (
