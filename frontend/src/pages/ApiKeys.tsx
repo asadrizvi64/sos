@@ -139,10 +139,13 @@ export default function ApiKeys() {
   };
 
   const handleDelete = (key: ApiKey) => {
-    if (!confirm(`Are you sure you want to delete "${key.name}"? This action cannot be undone.`)) {
-      return;
+    setShowDeleteModal(key);
+  };
+
+  const confirmDelete = () => {
+    if (showDeleteModal) {
+      deleteMutation.mutate(showDeleteModal.id);
     }
-    deleteMutation.mutate(key.id);
   };
 
   const handleRotate = (key: ApiKey) => {
@@ -521,11 +524,49 @@ export default function ApiKeys() {
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete API Key</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 mb-6">
+                Are you sure you want to delete <strong className="text-gray-900 dark:text-gray-100">"{showDeleteModal.name}"</strong>? 
+                This API key will be permanently removed and any applications using it will stop working.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(null)}
+                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteMutation.isPending}
+                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                >
+                  {deleteMutation.isPending ? 'Deleting...' : 'Delete API Key'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Edit API Key Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h2 className="text-xl font-semibold mb-4">Edit API Key</h2>
+          <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Edit API Key</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
