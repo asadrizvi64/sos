@@ -30,6 +30,21 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
     enabled: node?.data?.type === 'ai.rag' || node?.data?.type === 'ai.document_ingest' || node?.data?.type === 'ai.agent',
   });
 
+  // Fetch connectors to use as tools for AI agents
+  const { data: connectors = [] } = useQuery({
+    queryKey: ['connectors'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/connectors');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch connectors:', error);
+        return [];
+      }
+    },
+    enabled: node?.data?.type === 'ai.agent',
+  });
+
   // Check if this is an integration node
   const isIntegrationNode = node?.data?.type?.startsWith('integration.');
   const connectorId = isIntegrationNode ? (node.data.type as string).replace('integration.', '') : null;
