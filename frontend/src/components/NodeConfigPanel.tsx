@@ -585,17 +585,26 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
             execute_code: 'Code Execution',
           };
           
+          const toolDescriptions: Record<string, string> = {
+            calculator: 'Perform mathematical calculations',
+            wikipedia: 'Search Wikipedia for information',
+            serpapi: 'Search the web using SerpAPI (requires API key)',
+            duckduckgo: 'Search the web using DuckDuckGo (free, no API key)',
+            brave: 'Search the web using Brave Search (requires API key)',
+            execute_code: 'Write and execute custom code in JavaScript or Python',
+          };
+          
           return (
             <div className="space-y-2">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 Select tools the agent can use
                 <span className="block mt-1 text-gray-400 dark:text-gray-500 italic">
-                  Note: App integrations as tools coming soon - currently supports built-in tools only
+                  Note: To use app integrations as tools, register them via the backend API. Currently supports built-in tools only.
                 </span>
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {availableTools.map((tool) => (
-                  <label key={tool} className="flex items-center gap-2 cursor-pointer">
+                  <label key={tool} className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <input
                       type="checkbox"
                       checked={selectedTools.includes(tool)}
@@ -607,16 +616,25 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
                       }}
                       onClick={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
-                      className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:bg-gray-700"
+                      className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:bg-gray-700 mt-0.5"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {toolLabels[tool] || tool}
-                    </span>
-                    {tool === 'execute_code' && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 ml-auto" title="Allows agent to write and execute custom code">
-                        ⚡
-                      </span>
-                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {toolLabels[tool] || tool}
+                        </span>
+                        {tool === 'execute_code' && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400" title="Allows agent to write and execute custom code">
+                            ⚡
+                          </span>
+                        )}
+                      </div>
+                      {toolDescriptions[tool] && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {toolDescriptions[tool]}
+                        </p>
+                      )}
+                    </div>
                   </label>
                 ))}
               </div>
