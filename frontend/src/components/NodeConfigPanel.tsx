@@ -839,6 +839,24 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
   return (
     <div 
       className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full"
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        // Allow Escape key to close panel
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      }}
+      onFocus={(e) => e.stopPropagation()}
+      onBlur={(e) => e.stopPropagation()}
+      tabIndex={-1}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
