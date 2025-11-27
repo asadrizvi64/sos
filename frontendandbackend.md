@@ -169,78 +169,90 @@ This document tracks the synchronization between frontend API calls and backend 
 
 ## 2. Frontend Lacking Backend Implementation ⚠️
 
-### Dashboard & Analytics
+### Dashboard & Analytics ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `Dashboard.tsx` | `GET /stats` | ❌ Missing | ⚠️ Needs implementation | Dashboard stats endpoint |
-| `Dashboard.tsx` | `GET /analytics/overview` | ❌ Missing | ⚠️ Needs implementation | Analytics overview |
-| `Analytics.tsx` | `GET /analytics/workflows` | ❌ Missing | ⚠️ Needs implementation | Workflow analytics |
-| `Analytics.tsx` | `GET /analytics/executions` | ❌ Missing | ⚠️ Needs implementation | Execution analytics |
+| `Dashboard.tsx` | `GET /stats` | ✅ `GET /api/v1/stats` | ✅ Implemented | Dashboard stats endpoint |
+| `Dashboard.tsx` | `GET /stats/trends` | ✅ `GET /api/v1/stats/trends` | ✅ Implemented | Trend data |
+| `Dashboard.tsx` | `GET /stats/chart` | ✅ `GET /api/v1/stats/chart` | ✅ Implemented | Chart data |
+| `Dashboard.tsx` | `GET /stats/scraping/events` | ✅ `GET /api/v1/stats/scraping/events` | ✅ Implemented | Scraping events |
+| `Analytics.tsx` | `GET /analytics/workflows` | ✅ `GET /api/v1/analytics/workflows` | ✅ Implemented | Workflow analytics |
+| `Analytics.tsx` | `GET /analytics/nodes` | ✅ `GET /api/v1/analytics/nodes` | ✅ Implemented | Node analytics |
+| `Analytics.tsx` | `GET /analytics/costs` | ✅ `GET /api/v1/analytics/costs` | ✅ Implemented | Cost analytics |
+| `Analytics.tsx` | `GET /analytics/errors` | ✅ `GET /api/v1/analytics/errors` | ✅ Implemented | Error analytics |
+| `Analytics.tsx` | `GET /analytics/usage` | ✅ `GET /api/v1/analytics/usage` | ✅ Implemented | Usage statistics |
 
-### Activity Log
+### Activity Log ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `ActivityLog.tsx` | `GET /activity-log` | ❌ Missing | ⚠️ Needs implementation | User activity log |
-| `ActivityLog.tsx` | `GET /activity-log/:id` | ❌ Missing | ⚠️ Needs implementation | Specific activity entry |
+| `ActivityLog.tsx` | `GET /users/me/activity` | ✅ `GET /api/v1/users/me/activity` | ✅ Implemented | User activity log |
 
-### Audit Logs
+### Audit Logs ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `AuditLogs.tsx` | `GET /audit-logs` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
-| `AuditLogs.tsx` | `GET /audit-logs/:id` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
+| `AuditLogs.tsx` | `GET /audit-logs` | ✅ `GET /api/v1/audit-logs` | ✅ Implemented | List audit logs |
+| `AuditLogs.tsx` | `GET /audit-logs/:id` | ✅ `GET /api/v1/audit-logs/:id` | ✅ Implemented | Get audit log details |
+| `AuditLogs.tsx` | `GET /audit-logs/export/csv` | ✅ `GET /api/v1/audit-logs/export/csv` | ✅ Implemented | Export audit logs as CSV |
 
-### Performance Monitoring
+### Performance Monitoring ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `PerformanceMonitoring.tsx` | `GET /monitoring/performance` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
-| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/endpoints` | ❌ Missing | ⚠️ Needs implementation | Endpoint performance metrics |
-| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/system` | ❌ Missing | ⚠️ Needs implementation | System performance metrics |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance` | ✅ `GET /api/v1/monitoring/performance` | ✅ Implemented | All performance metrics |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/system` | ✅ `GET /api/v1/monitoring/performance/system` | ✅ Implemented | System performance metrics |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/slowest` | ✅ `GET /api/v1/monitoring/performance/slowest` | ✅ Implemented | Slowest endpoints |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/most-requested` | ✅ `GET /api/v1/monitoring/performance/most-requested` | ✅ Implemented | Most requested endpoints |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/cache` | ✅ `GET /api/v1/monitoring/performance/cache` | ✅ Implemented | Cache statistics |
+| `PerformanceMonitoring.tsx` | `GET /monitoring/performance/endpoint/:method/:endpoint` | ✅ `GET /api/v1/monitoring/performance/endpoint/:method/:endpoint` | ✅ Implemented | Endpoint-specific metrics |
+| `PerformanceMonitoring.tsx` | `POST /monitoring/performance/reset` | ✅ `POST /api/v1/monitoring/performance/reset` | ✅ Implemented | Reset metrics |
 
 ### Email Trigger Monitoring
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
 | `EmailTriggerMonitoring.tsx` | `GET /email-triggers/monitoring` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
 
-### Preferences
+### Preferences ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `Preferences.tsx` | `GET /users/preferences` | ❌ Missing | ⚠️ Needs implementation | User preferences |
-| `Preferences.tsx` | `PUT /users/preferences` | ❌ Missing | ⚠️ Needs implementation | Update user preferences |
+| `Preferences.tsx` | `GET /users/me` (includes preferences) | ✅ `GET /api/v1/users/me` | ✅ Implemented | User preferences included in user data |
+| `Preferences.tsx` | `GET /users/me/preferences` | ✅ `GET /api/v1/users/me/preferences` | ✅ Implemented | Get user preferences |
+| `Preferences.tsx` | `PUT /users/me/preferences` | ✅ `PUT /api/v1/users/me/preferences` | ✅ Implemented | Update user preferences |
 
 ### Code Agent Analytics
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
 | `CodeAgentAnalytics.tsx` | `GET /code-agents/analytics` | ✅ Exists | ✅ Implemented | Already mapped above |
 
-### Policy Configuration
+### Policy Configuration ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `PolicyConfiguration.tsx` | `GET /policies` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
-| `PolicyConfiguration.tsx` | `POST /policies` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
-| `PolicyConfiguration.tsx` | `PUT /policies/:id` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
-| `PolicyConfiguration.tsx` | `DELETE /policies/:id` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
+| `PolicyConfiguration.tsx` | `GET /policies` | ✅ `GET /api/v1/policies` | ✅ Implemented | List policies |
+| `PolicyConfiguration.tsx` | `POST /policies` | ✅ `POST /api/v1/policies` | ✅ Implemented | Create policy |
+| `PolicyConfiguration.tsx` | `PUT /policies/:id` | ✅ `PUT /api/v1/policies/:id` | ✅ Implemented | Update policy |
+| `PolicyConfiguration.tsx` | `DELETE /policies/:id` | ✅ `DELETE /api/v1/policies/:id` | ✅ Implemented | Delete policy |
 
-### Agent Catalogue
+### Agent Catalogue ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `AgentCatalogue.tsx` | `GET /code-agents/registry/public` | ✅ Exists | ⚠️ May need frontend integration | Check if frontend calls this |
+| `AgentCatalogue.tsx` | `GET /agents/frameworks` | ✅ `GET /api/v1/agents/frameworks` | ✅ Implemented | List agent frameworks |
+| `AgentCatalogue.tsx` | `GET /agents/frameworks/search` | ✅ `GET /api/v1/agents/frameworks/search` | ✅ Implemented | Search frameworks |
+| `AgentCatalogue.tsx` | `GET /agents/frameworks/:name` | ✅ `GET /api/v1/agents/frameworks/:name` | ✅ Implemented | Get framework details |
 
-### Connector Marketplace
+### Connector Marketplace ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `ConnectorMarketplace.tsx` | `GET /connectors` | ✅ Exists | ✅ Implemented | Already mapped above |
-| `ConnectorMarketplace.tsx` | `GET /connectors/categories` | ❌ Missing | ⚠️ Needs implementation | Connector categories |
+| `ConnectorMarketplace.tsx` | `GET /connectors` | ✅ `GET /api/v1/connectors` | ✅ Implemented | List connectors |
+| `ConnectorMarketplace.tsx` | `GET /connectors/categories` | ✅ `GET /api/v1/connectors/categories` | ✅ Implemented | Connector categories |
 
 ### Human Prompt
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
 | `HumanPromptModal.tsx` | `POST /executions/:id/human-prompt/:nodeId/respond` | ✅ Exists | ✅ Implemented | Already mapped above |
 
-### Invitation Accept
+### Invitation Accept ✅ (All Implemented)
 | Frontend Component | API Call | Backend Route | Status | Notes |
 |-------------------|----------|---------------|--------|-------|
-| `InvitationAccept.tsx` | `GET /invitations/:token` | ❌ Missing | ⚠️ Needs implementation | Get invitation by token |
-| `InvitationAccept.tsx` | `POST /invitations/:token/accept` | ❌ Missing | ⚠️ Needs implementation | Accept invitation |
+| `InvitationAccept.tsx` | `GET /invitations/token/:token` | ✅ `GET /api/v1/invitations/token/:token` | ✅ Implemented | Get invitation by token |
+| `InvitationAccept.tsx` | `POST /invitations/accept` | ✅ `POST /api/v1/invitations/accept` | ✅ Implemented | Accept invitation |
 
 ---
 

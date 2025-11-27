@@ -372,12 +372,30 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
                 <input
                   type="text"
                   value={String(value)}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleChange(key, e.target.value);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    (e.target as HTMLInputElement).focus();
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onFocus={(e) => {
+                    e.stopPropagation();
+                  }}
                   placeholder="Or enter image URL"
                   className="w-full px-2 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-gray-100"
+                  style={{ 
+                    color: 'inherit',
+                    WebkitTextFillColor: 'inherit',
+                  }}
+                  autoComplete="off"
                 />
               )}
             </div>
@@ -575,13 +593,31 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
         return (
           <textarea
             value={value as string}
-            onChange={(e) => handleChange(key, e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              handleChange(key, e.target.value);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              (e.target as HTMLTextAreaElement).focus();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+            }}
+            onFocus={(e) => {
+              e.stopPropagation();
+            }}
             placeholder={property.description}
             rows={3}
             className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm"
+            style={{ 
+              color: 'inherit',
+              WebkitTextFillColor: 'inherit',
+            }}
+            autoComplete="off"
           />
         );
 
@@ -793,13 +829,31 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
             <input
               type="number"
               value={value as number}
-              onChange={(e) => handleChange(key, parseFloat(e.target.value))}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleChange(key, parseFloat(e.target.value));
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                (e.target as HTMLInputElement).focus();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+              }}
+              onFocus={(e) => {
+                e.stopPropagation();
+              }}
               min={property.minimum}
               max={property.maximum}
               className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              style={{ 
+                color: 'inherit',
+                WebkitTextFillColor: 'inherit',
+              }}
+              autoComplete="off"
             />
             {property.minimum !== undefined && property.maximum !== undefined && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -826,11 +880,32 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
           <input
             type="text"
             value={String(value)}
-            onChange={(e) => handleChange(key, e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              handleChange(key, e.target.value);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Ensure input receives focus
+              (e.target as HTMLInputElement).focus();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              // Don't prevent default - allow focus
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              // Don't prevent default - allow typing
+            }}
+            onFocus={(e) => {
+              e.stopPropagation();
+            }}
             className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            style={{ 
+              color: 'inherit',
+              WebkitTextFillColor: 'inherit',
+            }}
+            autoComplete="off"
           />
         );
     }
@@ -838,31 +913,31 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
 
   return (
     <div 
-      className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full"
+      className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full relative z-50"
       onClick={(e) => {
+        // Only stop propagation, don't prevent default
+        // This allows inputs to receive clicks and focus properly
         e.stopPropagation();
-        e.preventDefault();
       }}
       onMouseDown={(e) => {
+        // Only stop propagation, don't prevent default
+        // This allows inputs to receive mouse events properly
         e.stopPropagation();
-        e.preventDefault();
       }}
       onKeyDown={(e) => {
-        e.stopPropagation();
         // Allow Escape key to close panel
         if (e.key === 'Escape') {
           onClose();
+          return;
         }
+        // Only stop propagation for other keys, don't prevent default
+        // This allows inputs to receive keyboard events properly
+        e.stopPropagation();
       }}
-      onFocus={(e) => e.stopPropagation()}
-      onBlur={(e) => e.stopPropagation()}
-      tabIndex={-1}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label="Node configuration panel"
       aria-modal="false"
+      style={{ pointerEvents: 'auto' }}
     >
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex justify-between items-center mb-2">
@@ -1038,29 +1113,61 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
                                 placeholder="Field name (e.g., title)"
                                 value={fieldName}
                                 onChange={(e) => {
+                                  e.stopPropagation();
                                   const newSelectors = { ...selectors };
                                   delete newSelectors[fieldName];
                                   newSelectors[e.target.value] = selector;
                                   handleChange('selectors', newSelectors);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  (e.target as HTMLInputElement).focus();
+                                }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                }}
                                 className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm"
+                                style={{ 
+                                  color: 'inherit',
+                                  WebkitTextFillColor: 'inherit',
+                                }}
+                                autoComplete="off"
                               />
                               <input
                                 type="text"
                                 placeholder="CSS selector (e.g., h1.title)"
                                 value={selector}
                                 onChange={(e) => {
+                                  e.stopPropagation();
                                   const newSelectors = { ...selectors };
                                   newSelectors[fieldName] = e.target.value;
                                   handleChange('selectors', newSelectors);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  (e.target as HTMLInputElement).focus();
+                                }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                }}
                                 className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm font-mono"
+                                style={{ 
+                                  color: 'inherit',
+                                  WebkitTextFillColor: 'inherit',
+                                }}
+                                autoComplete="off"
                               />
                               <button
                                 onClick={() => {
@@ -1312,11 +1419,29 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
                     min="1"
                     max="10"
                     value={(retry.maxAttempts as number) || 3}
-                    onChange={(e) => handleRetryChange('maxAttempts', parseInt(e.target.value))}
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleRetryChange('maxAttempts', parseInt(e.target.value));
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      (e.target as HTMLInputElement).focus();
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    style={{ 
+                      color: 'inherit',
+                      WebkitTextFillColor: 'inherit',
+                    }}
+                    autoComplete="off"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Maximum number of retry attempts (1-10)</p>
                 </div>
@@ -1349,11 +1474,29 @@ export default function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: N
                     max="60000"
                     step="100"
                     value={(retry.delay as number) || 1000}
-                    onChange={(e) => handleRetryChange('delay', parseInt(e.target.value))}
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleRetryChange('delay', parseInt(e.target.value));
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      (e.target as HTMLInputElement).focus();
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    style={{ 
+                      color: 'inherit',
+                      WebkitTextFillColor: 'inherit',
+                    }}
+                    autoComplete="off"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Initial delay before first retry (100-60000ms)</p>
                 </div>
