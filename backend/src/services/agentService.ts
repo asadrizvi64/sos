@@ -220,8 +220,8 @@ export class AgentService {
     // Get LLM
     const llm = await this.getLLM(provider, model, temperature);
 
-    // Get tools
-    const availableTools = this.getTools(tools);
+    // Get tools (async now to support connector tools)
+    const availableTools = await this.getTools(tools);
 
     // Create ReAct agent graph
     const graph = this.createReActAgentGraph(llm, availableTools, systemPrompt);
@@ -408,9 +408,60 @@ export class AgentService {
     }
   }
 
-  private getTools(toolNames: string[]): Tool[] {
+  private async getTools(toolNames: string[]): Promise<Tool[]> {
     const allTools = langtoolsService.getAllToolsMap();
     
+    // Check for connector tools (app:connectorId or app:connectorId:actionId)
+    const connectorToolIds = toolNames.filter(name => name.startsWith('app:'));
+    
+    if (connectorToolIds.length > 0) {
+      // Import connector registry to get connector manifests
+      const connectorRegistryModule = await import('./connectors/registry');
+      const connectorRegistry = connectorRegistryModule.connectorRegistry || connectorRegistryModule.default;
+      
+      // Group by connector ID
+      const connectorGroups = new Map<string, string[]>();
+      for (const toolId of connectorToolIds) {
+        const parts = toolId.split(':');
+        if (parts.length >= 2) {
+          const connectorId = parts[1];
+          if (!connectorGroups.has(connectorId)) {
+            connectorGroups.set(connectorId, []);
+          }
+          connectorGroups.get(connectorId)!.push(toolId);
+        }
+      }
+      
+      // Register connector tools
+      for (const [connectorId, toolIds] of connectorGroups.entries()) {
+        try {
+          const manifest = connectorRegistry.getManifest(connectorId);
+          if (manifest) {
+            // Register connector tools (will add to langtoolsService)
+            await langtoolsService.registerConnectorTools(connectorId, manifest, {
+              // Context can be passed from agent execution context if needed
+            });
+          }
+        } catch (error: any) {
+          console.warn(`[AgentService] Failed to register connector tools for ${connectorId}:`, error);
+        }
+      }
+      
+      // Refresh tools map after registering connector tools
+      const updatedTools = langtoolsService.getAllToolsMap();
+      
+      if (toolNames.length === 0) {
+        // Return all available tools including connector tools
+        return Array.from(updatedTools.values()) as Tool[];
+      }
+      
+      // Return specified tools (including newly registered connector tools)
+      return toolNames
+        .map(name => updatedTools.get(name))
+        .filter((tool): tool is Tool => tool !== undefined);
+    }
+    
+    // No connector tools, use standard logic
     if (toolNames.length === 0) {
       // Return all available tools
       return Array.from(allTools.values()) as Tool[];

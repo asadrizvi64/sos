@@ -444,12 +444,79 @@ export async function executeRAG(context: NodeExecutionContext): Promise<NodeExe
     'Use the following context to answer the question:\n\nContext:\n{{context}}\n\nQuestion: {{query}}\n\nAnswer:';
   const apiKey = (nodeConfig.apiKey as string) || undefined;
 
-  if (!query) {
+  // Validation: Query is required
+  if (!query || query.trim().length === 0) {
     return {
       success: false,
       error: {
-        message: 'Query is required',
+        message: 'Query is required and cannot be empty',
         code: 'MISSING_QUERY',
+      },
+    };
+  }
+
+  // Validation: Vector store provider must be configured
+  const validProviders = ['memory', 'pinecone', 'weaviate', 'chroma', 'database', 'qdrant', 'milvus'];
+  if (!validProviders.includes(vectorStoreProvider)) {
+    return {
+      success: false,
+      error: {
+        message: `Invalid vector store provider: ${vectorStoreProvider}. Valid providers: ${validProviders.join(', ')}`,
+        code: 'INVALID_VECTOR_STORE_PROVIDER',
+      },
+    };
+  }
+
+  // Validation: Index name is required for non-memory providers
+  if (vectorStoreProvider !== 'memory' && (!indexName || indexName.trim().length === 0)) {
+    return {
+      success: false,
+      error: {
+        message: `Index name is required for vector store provider: ${vectorStoreProvider}`,
+        code: 'MISSING_INDEX_NAME',
+      },
+    };
+  }
+
+  // Validation: LLM provider must be configured
+  const validLLMProviders = ['openai', 'anthropic', 'google'];
+  if (!validLLMProviders.includes(llmProvider)) {
+    return {
+      success: false,
+      error: {
+        message: `Invalid LLM provider: ${llmProvider}. Valid providers: ${validLLMProviders.join(', ')}`,
+        code: 'INVALID_LLM_PROVIDER',
+      },
+    };
+  }
+
+  // Validation: Check API keys for providers that require them
+  if (vectorStoreProvider === 'pinecone' && !apiKey && !process.env.PINECONE_API_KEY) {
+    return {
+      success: false,
+      error: {
+        message: 'Pinecone API key is required. Set it in node config (apiKey) or environment variable (PINECONE_API_KEY)',
+        code: 'MISSING_API_KEY',
+      },
+    };
+  }
+
+  if (llmProvider === 'openai' && !process.env.OPENAI_API_KEY) {
+    return {
+      success: false,
+      error: {
+        message: 'OpenAI API key is required. Set it in environment variable (OPENAI_API_KEY)',
+        code: 'MISSING_API_KEY',
+      },
+    };
+  }
+
+  if (llmProvider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
+    return {
+      success: false,
+      error: {
+        message: 'Anthropic API key is required. Set it in environment variable (ANTHROPIC_API_KEY)',
+        code: 'MISSING_API_KEY',
       },
     };
   }
@@ -476,17 +543,69 @@ export async function executeRAG(context: NodeExecutionContext): Promise<NodeExe
 
   try {
     // Step 1: Generate query embedding (using LangChain)
-    const queryEmbedding = await langchainService.generateEmbedding(query);
+    let queryEmbedding: number[];
+    try {
+      queryEmbedding = await langchainService.generateEmbedding(query);
+      if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+        return {
+          success: false,
+          error: {
+            message: 'Failed to generate query embedding: empty or invalid embedding returned',
+            code: 'EMBEDDING_GENERATION_ERROR',
+          },
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: {
+          message: `Failed to generate query embedding: ${error.message || 'Unknown error'}`,
+          code: 'EMBEDDING_GENERATION_ERROR',
+          details: error,
+        },
+      };
+    }
 
     // Step 2: Search vector store
-    const searchResults = await queryVectors(vectorStoreProvider, indexName, queryEmbedding, topK, apiKey, organizationId);
+    let searchResults: any[];
+    try {
+      searchResults = await queryVectors(vectorStoreProvider, indexName, queryEmbedding, topK, apiKey, organizationId);
+      
+      if (!Array.isArray(searchResults)) {
+        return {
+          success: false,
+          error: {
+            message: 'Vector store query returned invalid results format',
+            code: 'INVALID_RESULTS_FORMAT',
+          },
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: {
+          message: `Vector store query failed: ${error.message || 'Unknown error'}`,
+          code: 'VECTOR_STORE_QUERY_ERROR',
+          details: {
+            provider: vectorStoreProvider,
+            indexName,
+            error: error.message,
+          },
+        },
+      };
+    }
 
     if (searchResults.length === 0) {
       return {
         success: false,
         error: {
-          message: 'No relevant documents found in vector store',
+          message: `No relevant documents found in vector store "${indexName}" (provider: ${vectorStoreProvider}). Ensure documents have been ingested using the Document Ingestion node.`,
           code: 'NO_RESULTS',
+          details: {
+            provider: vectorStoreProvider,
+            indexName,
+            topK,
+          },
         },
       };
     }

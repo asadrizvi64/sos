@@ -339,6 +339,123 @@ Example: {"action": "navigate", "url": "https://example.com", "screenshot": true
   }
 
   /**
+   * Register connector tools for agents
+   * This allows agents to use connector actions as tools
+   * Supports both full connector (app:connectorId) and specific actions (app:connectorId:actionId)
+   */
+  async registerConnectorTools(connectorId: string, connectorManifest: any, context?: { userId?: string; organizationId?: string; workflowId?: string }): Promise<void> {
+    try {
+      // Import connector registry
+      const connectorRegistryModule = await import('./connectors/registry');
+      const connectorRegistry = connectorRegistryModule.connectorRegistry || connectorRegistryModule.default;
+      
+      // Register full connector as a tool (allows agent to use any action from this connector)
+      const connectorToolId = `app:${connectorId}`;
+      const connectorTool = new DynamicTool({
+        name: connectorToolId,
+        description: `Use ${connectorManifest.name} integrations. Available actions: ${connectorManifest.actions?.map((a: any) => a.name).join(', ') || 'none'}. When using this tool, specify the action name and required parameters.`,
+        func: async (input: string) => {
+          try {
+            // Parse input (could be JSON or action name)
+            let actionName: string;
+            let params: Record<string, any> = {};
+            
+            try {
+              const parsed = JSON.parse(input);
+              actionName = parsed.action || parsed.actionName;
+              params = parsed.params || parsed;
+            } catch {
+              // Not JSON, treat as action name
+              actionName = input;
+            }
+            
+            // If no action specified, list available actions
+            if (!actionName) {
+              return JSON.stringify({
+                error: 'Action name required',
+                availableActions: connectorManifest.actions?.map((a: any) => ({
+                  name: a.name,
+                  id: a.id,
+                  description: a.description,
+                })) || [],
+              });
+            }
+            
+            // Find the action
+            const action = connectorManifest.actions?.find((a: any) => a.id === actionName || a.name === actionName);
+            if (!action) {
+              return JSON.stringify({
+                error: `Action "${actionName}" not found`,
+                availableActions: connectorManifest.actions?.map((a: any) => a.name) || [],
+              });
+            }
+            
+            // Execute connector action
+            const result = await connectorRegistry.execute(connectorId, action.id, params, {
+              userId: context?.userId,
+              organizationId: context?.organizationId,
+              workflowId: context?.workflowId,
+            } as any);
+            
+            return JSON.stringify({
+              success: result.success,
+              data: result.data,
+              error: result.error,
+            });
+          } catch (error: any) {
+            return JSON.stringify({
+              success: false,
+              error: error.message || 'Connector execution failed',
+            });
+          }
+        },
+      });
+      
+      this.tools.set(connectorToolId, connectorTool);
+      
+      // Register individual actions as separate tools
+      if (connectorManifest.actions && Array.isArray(connectorManifest.actions)) {
+        for (const action of connectorManifest.actions) {
+          const actionToolId = `app:${connectorId}:${action.id}`;
+          const actionTool = new DynamicStructuredTool({
+            name: actionToolId,
+            description: `${action.name} from ${connectorManifest.name}. ${action.description || ''}`,
+            schema: action.inputSchema ? z.object(action.inputSchema) : z.object({
+              params: z.record(z.any()).optional().describe('Action parameters'),
+            }),
+            func: async (input: any) => {
+              try {
+                const params = input.params || input;
+                const result = await connectorRegistry.execute(connectorId, action.id, params, {
+                  userId: context?.userId,
+                  organizationId: context?.organizationId,
+                  workflowId: context?.workflowId,
+                } as any);
+                
+                return JSON.stringify({
+                  success: result.success,
+                  data: result.data,
+                  error: result.error,
+                });
+              } catch (error: any) {
+                return JSON.stringify({
+                  success: false,
+                  error: error.message || 'Action execution failed',
+                });
+              }
+            },
+          });
+          
+          this.tools.set(actionToolId, actionTool);
+        }
+      }
+    } catch (error: any) {
+      console.warn(`[LangToolsService] Failed to register connector tools for ${connectorId}:`, error);
+      // Don't throw - continue with other tools
+    }
+  }
+
+  /**
    * Register code execution tool for agents
    * This allows agents to write and execute code autonomously
    */
