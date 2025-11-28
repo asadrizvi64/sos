@@ -4,7 +4,8 @@ import { setOrganization } from '../middleware/organization';
 import { auditLogMiddleware } from '../middleware/auditLog';
 import { agentFrameworkRegistry } from '../services/agentFramework';
 import { agentRouter, RoutingHeuristics } from '../services/agentRouter';
-import { websocketService } from '../services/websocketService';
+// WebSocket service removed - using polling endpoint instead for serverless compatibility
+// import { websocketService } from '../services/websocketService';
 import { createId } from '@paralleldrive/cuid2';
 
 const router = Router();
@@ -59,8 +60,8 @@ router.post('/execute', async (req: AuthRequest, res) => {
       tools_required: true,
     };
 
-    // Emit start event
-    websocketService.emitAgentExecutionStart(executionId, query);
+    // Note: WebSocket emissions removed for serverless compatibility
+    // Execution status is available via polling endpoint: /api/poll/execution-status?executionId=...
 
     // Execute agent (async for streaming)
     if (stream) {
@@ -74,15 +75,11 @@ router.post('/execute', async (req: AuthRequest, res) => {
             { userId: req.user!.id, organizationId: req.organizationId }
           );
 
-          // Emit completion
-          websocketService.emitAgentExecutionComplete(executionId, result.output, {
-            framework: 'auto', // Would get from result
-            executionTime: result.executionTime,
-            tokensUsed: result.tokensUsed,
-            cost: result.cost,
-          });
+          // Execution status available via polling endpoint
+          // No WebSocket emission needed for serverless compatibility
         } catch (error: any) {
-          websocketService.emitAgentExecutionError(executionId, error.message || 'Execution failed');
+          // Error status available via polling endpoint
+          // No WebSocket emission needed for serverless compatibility
         }
       })();
 
@@ -115,7 +112,8 @@ router.post('/execute', async (req: AuthRequest, res) => {
           },
         });
       } catch (error: any) {
-        websocketService.emitAgentExecutionError(executionId, error.message || 'Execution failed');
+        // Error status available via polling endpoint
+        // No WebSocket emission needed for serverless compatibility
         res.status(500).json({
           executionId,
           status: 'failed',

@@ -11,7 +11,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+// Socket.IO removed for serverless compatibility - using polling instead
+// import { Server } from 'socket.io';
 import workflowsRouter from './routes/workflows';
 import authRouter from './routes/auth';
 import executionsRouter from './routes/executions';
@@ -39,9 +40,11 @@ import contactRouter from './routes/contact';
 import codeAgentsRouter from './routes/codeAgents';
 import codeExecLogsRouter from './routes/codeExecLogs';
 import policiesRouter from './routes/policies';
-import { scheduler } from './services/scheduler';
+// Scheduler removed for serverless compatibility - using Vercel Cron instead
+// import { scheduler } from './services/scheduler';
 import { permissionService } from './services/permissionService';
-import { websocketService } from './services/websocketService';
+// WebSocket service removed for serverless compatibility - using polling instead
+// import { websocketService } from './services/websocketService';
 import { emailTriggerService } from './services/emailTriggerService';
 import { osintService } from './services/osintService';
 import { auditLogMiddleware } from './middleware/auditLog';
@@ -53,15 +56,16 @@ import redis from './config/redis';
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-  },
-});
+// Socket.IO removed for serverless compatibility - using polling endpoint instead
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+//     methods: ['GET', 'POST'],
+//   },
+// });
 
-// Initialize WebSocket service
-websocketService.initialize(io);
+// WebSocket service removed for serverless compatibility
+// Execution status is available via polling endpoint: /api/poll/execution-status
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -125,26 +129,9 @@ app.get('/api/v1', (req, res) => {
   res.json({ message: 'SynthralOS Automation Platform API v1' });
 });
 
-// WebSocket connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  // Join execution room
-  socket.on('execution:subscribe', (executionId: string) => {
-    socket.join(`execution:${executionId}`);
-    console.log(`Client ${socket.id} subscribed to execution ${executionId}`);
-  });
-
-  // Leave execution room
-  socket.on('execution:unsubscribe', (executionId: string) => {
-    socket.leave(`execution:${executionId}`);
-    console.log(`Client ${socket.id} unsubscribed from execution ${executionId}`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
+// WebSocket connection handling removed for serverless compatibility
+// Clients should use polling endpoint: /api/poll/execution-status?executionId=...
+// Or use the polling utility from frontend/src/lib/polling.ts
 
 // Error handling middleware - standardized error format
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -203,9 +190,16 @@ httpServer.listen(PORT, HOST, async () => {
     console.error('⚠️  Error initializing permissions:', error);
   }
   
-  // Start scheduler for scheduled workflows
-  await scheduler.start();
-  console.log('⏰ Scheduler started');
+  // Scheduler removed for serverless compatibility
+  // Scheduled workflows are handled by Vercel Cron jobs (see api/cron/scheduled-workflows.ts)
+  // Only start scheduler in non-serverless environments
+  if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const { scheduler } = await import('./services/scheduler');
+    await scheduler.start();
+    console.log('⏰ Scheduler started (non-serverless environment)');
+  } else {
+    console.log('⏰ Scheduler skipped (serverless environment - using Vercel Cron)');
+  }
   
   // Initialize agent frameworks
   initializeAgentFrameworks();
