@@ -33,6 +33,23 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Verify Vercel Configuration
+        run: |
+          echo "🔍 Verifying Vercel configuration..."
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "❌ VERCEL_TOKEN is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "❌ VERCEL_ORG_ID is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "❌ VERCEL_PROJECT_ID is not set"
+            exit 1
+          fi
+          echo "✅ All Vercel secrets are configured"
+
       - name: Pull Vercel Environment Information
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
@@ -45,8 +62,13 @@ jobs:
 
       - name: Build Project Artifacts
         run: |
-          echo "🔨 Building project..."
-          vercel build ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/main' && '--prod' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "🔨 Building project for preview..."
+            vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            echo "🔨 Building project for production..."
+            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          fi
 
       - name: Deploy to Vercel (Preview)
         if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
