@@ -1,153 +1,100 @@
-services:
-  # Backend API Service (serves both API and frontend)
-  - type: web
-    name: sos-backend
-    env: node
-    region: oregon
-    plan: standard  # Upgraded plan with more CPU and space
-    buildCommand: npm ci --legacy-peer-deps --no-audit --no-fund && npm run build
-    # Note: Build process:
-    # 1. Installs dependencies with legacy-peer-deps (handles peer dependency conflicts)
-    # 2. Builds shared package (TypeScript compilation)
-    # 3. Builds backend (TypeScript compilation)
-    # 4. Builds frontend (Vite build)
-    # 5. Copies frontend/dist to backend/public for serving
-    startCommand: npm start
-    healthCheckPath: /health
-    # Build filters: Only deploy when backend/shared code changes (monorepo optimization)
-    buildFilter:
-      paths:
-        - backend/**
-        - shared/**
-        - frontend/**
-        - package.json
-        - package-lock.json
-        - render.yaml
-        - .npmrc
-        - vite.config.ts
-        - drizzle.config.ts
-        - jest.config.js
-        - tailwind.config.js
-        - postcss.config.js
-        - tsconfig.*.json
-        - index.html
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 4000
-      # Frontend build-time environment variables
-      # VITE_API_URL will be set to the backend URL (same origin since frontend is served from backend)
-      - key: VITE_API_URL
-        value: ""  # Empty string - socket.io will use window.location.origin at runtime
-      
-      # Database (Supabase PostgreSQL)
-      - key: DATABASE_URL
-        sync: false  # Set this in Render dashboard
-      
-      # Redis
-      - key: REDIS_URL
-        fromService:
-          name: sos-redis
-          type: redis
-          property: connectionString
-      
-      # Authentication (Clerk)
-      - key: CLERK_SECRET_KEY
-        sync: false  # Set this in Render dashboard
-      - key: CLERK_PUBLISHABLE_KEY
-        sync: false  # Set this in Render dashboard
-      
-      # AI Providers
-      - key: OPENAI_API_KEY
-        sync: false  # Set this in Render dashboard
-      - key: ANTHROPIC_API_KEY
-        sync: false  # Set this in Render dashboard
-      
-      # Email Service
-      - key: RESEND_API_KEY
-        sync: false  # Set this in Render dashboard
-      
-      # Nango OAuth (REQUIRED for 57 OAuth connectors)
-      - key: NANGO_SECRET_KEY
-        sync: false  # Set this in Render dashboard - Get from https://nango.dev
-      - key: NANGO_HOST
-        value: https://api.nango.dev
-      
-      # Supabase (for code blob storage)
-      - key: SUPABASE_URL
-        sync: false  # Set this in Render dashboard
-      - key: SUPABASE_ANON_KEY
-        sync: false  # Set this in Render dashboard
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false  # Set this in Render dashboard
-      
-      # CORS - Frontend is served from the same origin as backend (empty = same origin)
-      - key: CORS_ORIGIN
-        value: ""  # Empty string - backend will use same origin since frontend is served from backend
-      
-      # OpenTelemetry (Optional)
-      - key: OTEL_ENABLED
-        value: "false"  # Set to "true" if using OpenTelemetry
-      - key: OTEL_SERVICE_NAME
-        value: sos-backend
-      - key: OTEL_SERVICE_VERSION
-        value: "1.0.0"
-      - key: OTEL_EXPORTER_OTLP_ENDPOINT
-        sync: false  # Set if using OpenTelemetry
-      
-      # PostHog Analytics (Optional)
-      - key: POSTHOG_API_KEY
-        sync: false  # Set if using PostHog
-      - key: POSTHOG_HOST
-        value: https://app.posthog.com
-      
-      # RudderStack (Optional)
-      - key: RUDDERSTACK_WRITE_KEY
-        sync: false  # Set if using RudderStack
-      - key: RUDDERSTACK_DATA_PLANE_URL
-        value: https://hosted.rudderlabs.com
-      
-      # StackStorm (Optional - for self-healing)
-      - key: STACKSTORM_ENABLED
-        value: "false"  # Set to "true" if using StackStorm
-      - key: STACKSTORM_API_URL
-        sync: false  # Set if using StackStorm
-      - key: STACKSTORM_API_KEY
-        sync: false  # Set if using StackStorm
-      
-      # JWT Secret (auto-generated)
-      - key: JWT_SECRET
-        generateValue: true
+name: Deploy to Vercel
 
-  # Frontend Static Site - DISABLED: Frontend is now served from backend
-  # - type: web
-  #   name: sos-frontend
-  #   env: static
-  #   region: oregon
-  #   rootDir: frontend
-  #   buildCommand: npm ci && npm run build
-  #   staticPublishPath: ./dist
-  #   envVars:
-  #     - key: VITE_API_URL
-  #       fromService:
-  #         name: sos-backend
-  #         type: web
-  #         property: host
-  #     - key: VITE_CLERK_PUBLISHABLE_KEY
-  #       sync: false  # Set this in Render dashboard (same as CLERK_PUBLISHABLE_KEY)
+on:
+  push:
+    branches:
+      - main
+      - claude/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
-  # Redis Service
-  - type: redis
-    name: sos-redis
-    region: oregon
-    plan: standard  # Upgraded plan
-    maxmemoryPolicy: allkeys-lru
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-# Note: We're using Supabase for PostgreSQL, but you can add a Render DB here as backup
-# databases:
-#   - name: sos-db
-#     databaseName: sos_automation
-#     user: sos
-#     region: oregon
-#     plan: starter
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "📦 Pulling Vercel preview environment..."
+            vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            echo "🚀 Pulling Vercel production environment..."
+            vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          fi
+
+      - name: Build Project Artifacts
+        run: |
+          echo "🔨 Building project..."
+          vercel build ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/main' && '--prod' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (Preview)
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
+        id: deploy-preview
+        run: |
+          echo "📦 Deploying to Vercel Preview..."
+          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$url" >> $GITHUB_OUTPUT
+          echo "✅ Preview deployment complete!"
+          echo "🔗 Preview URL: $url"
+
+      - name: Deploy to Vercel (Production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: deploy-production
+        run: |
+          echo "🚀 Deploying to Vercel Production..."
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$url" >> $GITHUB_OUTPUT
+          echo "✅ Production deployment complete!"
+          echo "🔗 Production URL: $url"
+
+      - name: Comment PR with Preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy-preview.outputs.deployment_url }}';
+            if (url) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `### 🚀 Vercel Preview Deployment\n\n✅ Your preview deployment is ready!\n\n🔗 **Preview URL:** ${url}\n\n---\n*Deployed from commit: ${context.sha.substring(0, 7)}*`
+              });
+            }
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "- **Environment:** Preview" >> $GITHUB_STEP_SUMMARY
+            echo "- **URL:** ${{ steps.deploy-preview.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Environment:** Production" >> $GITHUB_STEP_SUMMARY
+            echo "- **URL:** ${{ steps.deploy-production.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
